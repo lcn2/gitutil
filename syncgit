@@ -1,0 +1,192 @@
+#!/bin/bash -
+#
+# syncgit - rebase and sync changes with a git repository
+#
+# @(#) $Revision$
+# @(#) $Id$
+# @(#) $Source$
+#
+# Copyright (c) 2016 by Landon Curt Noll.  All Rights Reserved.
+#
+# Permission to use, copy, modify, and distribute this software and
+# its documentation for any purpose and without fee is hereby granted,
+# provided that the above copyright, this permission notice and text
+# this comment, and the disclaimer below appear in all of the following:
+#
+#       supporting documentation
+#       source copies
+#       source works derived from this source
+#       binaries derived from this source or from derived source
+#
+# LANDON CURT NOLL DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+# INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO
+# EVENT SHALL LANDON CURT NOLL BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+# CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+# USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+# OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+#
+# chongo (Landon Curt Noll, http://www.isthe.com/chongo/index.html) /\oo/\
+#
+# Share and enjoy! :-)
+
+# setup
+#
+export USAGE="usage: $0 [-h] [-n] [-v] dir
+
+	-h          print this message and exit
+
+        -n          do not create anything
+	-v          be verbose
+
+	dir	    sync content of dir with the git repo"
+export VERBOSE=""
+export NO_OP=""
+
+# parse args
+#
+while getopts :hnv flag; do
+    case "$flag" in
+    h) echo "$USAGE" 1>&2;
+       exit 0
+       ;;
+    n) NO_OP="-n"
+       ;;
+    v) VERBOSE="-v"
+       ;;
+    ?) echo "$0: FATAL: unknown or invalid -flag" 1>&2 ;
+       echo "$USAGE" 1>&2 ;
+       exit 1
+       ;;
+    esac
+done
+shift $(( OPTIND - 1 ));
+if [[ $# -ne 1 ]]; then
+    echo "$0: FATAL: expected only 1 directory argument" 1>&2 ;
+    echo "$USAGE" 1>&2 ;
+    exit 2
+fi
+export DIR="$1"
+
+# firewall
+#
+if [[ ! -e "$DIR" ]]; then
+    echo "$0: FATAL: directory does not exist: $DIR" 1>&2
+    exit 3
+fi
+if [[ ! -d "$DIR" ]]; then
+    echo "$0: FATAL: not a directory: $DIR" 1>&2
+    exit 4
+fi
+
+# convert directory to an canonicalized absolute path
+#
+CANON_DIR=$(readlink --canonicalize-existing "$DIR" 2>/dev/null)
+status="$?"
+if [[ "$status" -ne 0 ]]; then
+    echo "$0: FATAL: cannot canonicalize $DIR, error code: $status" 1>&2
+    exit 5
+fi
+if [[ -z "$CANON_DIR" ]]; then
+    echo "$0: FATAL: DIR canonicalized $DIR to empty string" 1>&2
+    exit 6
+fi
+if [[ -n "$VERBOSE" ]]; then
+    echo "$0: Notice: will attempt to put $CANON_DIR under git control" 1>&2
+fi
+
+# move to the directory
+#
+if [[ -n "$VERBOSE" ]]; then
+   echo "$0: Notice: cd $CANON_DIR" 1>&2
+fi
+cd "$CANON_DIR"
+status="$?"
+if [[ "$status" -ne 0 ]]; then
+    echo "$0: FATAL: cannot cd $CANON_DIR, error code: $status" 1>&2
+    exit 7
+fi
+
+# reject if not under git control
+#
+if ! git rev-parse --is-inside-work >/dev/null 2>&1; then
+    echo "$0: FATAL: $DIR is not under git control" 1>&2
+    exit 8
+fi
+
+# git fetch
+#
+if [[ -n "$VERBOSE" ]]; then
+   echo "$0: Notice: git fetch $VERBOSE" 1>&2
+fi
+if [[ -z "$NO_OP" ]]; then
+    if [[ -n "$VERBOSE" ]]; then
+	git fetch -v
+	status="$?"
+	if [[ "$status" -ne 0 ]]; then
+	    echo "$0: FATAL: git init error: $status" 1>&2
+	    exit 9
+	fi
+    else
+	git fetch
+	status="$?"
+	if [[ "$status" -ne 0 ]]; then
+	    echo "$0: FATAL: git init error: $status" 1>&2
+	    exit 10
+	fi
+    fi
+fi
+
+# show changed files
+#
+unset LESS
+if [[ -n "$VERBOSE" ]]; then
+    echo "$0: Notice: git show --pretty=format: --name-only HEAD..origin/master" 1>&2
+fi
+git show --pretty=format: --name-only HEAD..origin/master
+status="$?"
+if [[ "$status" -ne 0 ]]; then
+    echo "$0: FATAL: git add error: $status" 1>&2
+    exit 11
+fi
+
+# git rebase
+#
+if [[ -n "$VERBOSE" ]]; then
+    echo "$0: Notice: git rebase origin/master" 1>&2
+fi
+if [[ -z "$NO_OP" ]]; then
+    git rebase origin/master
+    status="$?"
+    if [[ "$status" -ne 0 ]]; then
+	echo "$0: FATAL: git commit error: $status" 1>&2
+	exit 12
+    fi
+fi
+
+# git push
+#
+if [[ -n "$VERBOSE" ]]; then
+    echo "$0: Notice: git push -v" 1>&2
+fi
+if [[ -z "$NO_OP" ]]; then
+    if [[ -n "$VERBOSE" ]]; then
+	git push -v
+	status="$?"
+	if [[ "$status" -ne 0 ]]; then
+	    echo "$0: FATAL: git commit error: $status" 1>&2
+	    exit 13
+	fi
+    else
+	git push
+	status="$?"
+	if [[ "$status" -ne 0 ]]; then
+	    echo "$0: FATAL: git commit error: $status" 1>&2
+	    exit 14
+	fi
+    fi
+fi
+
+# All Done!!! -- Jessica Noll, Age 2
+#
+exit 0

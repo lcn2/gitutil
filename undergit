@@ -1,0 +1,378 @@
+#!/bin/bash -
+#
+# undergit - place a local directory under git control
+#
+# @(#) $Revision$
+# @(#) $Id$
+# @(#) $Source$
+#
+# Copyright (c) 2016 by Landon Curt Noll.  All Rights Reserved.
+#
+# Permission to use, copy, modify, and distribute this software and
+# its documentation for any purpose and without fee is hereby granted,
+# provided that the above copyright, this permission notice and text
+# this comment, and the disclaimer below appear in all of the following:
+#
+#       supporting documentation
+#       source copies
+#       source works derived from this source
+#       binaries derived from this source or from derived source
+#
+# LANDON CURT NOLL DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+# INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO
+# EVENT SHALL LANDON CURT NOLL BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+# CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+# USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+# OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+#
+# chongo (Landon Curt Noll, http://www.isthe.com/chongo/index.html) /\oo/\
+#
+# Share and enjoy! :-)
+
+# setup
+#
+export USAGE="usage: $0 [-h] [-a] [-b] [-r locrepo] [-c] [-m commit] [-n] [-v] dir
+
+	-h          print this message and exit
+
+	-a	    do not commit (def: add all and commit)
+	-b	    do not add, do not commit (def: add all and commit)
+	-r locrepo  directory of the local git repo (def: /usr/global/git)
+	-c	    do not clone to locrepo (def: bare clone to locrepo)
+	-m commit   use commit message when committing (def: 'under git control')
+
+        -n          do not create anything
+	-v          be verbose
+
+	dir	    directory to place under git control"
+export NO_COMMIT=""
+export NO_ADD=""
+export LOC_REPO_DIR="/usr/global/git"
+export NO_CLONE=""
+export COMMIT_MSG="under git control"
+export VERBOSE=""
+export NO_OP=""
+
+# parse args
+#
+while getopts :habr:cm:nv flag; do
+    case "$flag" in
+    h) echo "$USAGE" 1>&2;
+       exit 0
+       ;;
+    a) NO_COMMIT="true"
+       ;;
+    b) NO_ADD="true"
+       NO_COMMIT="true"
+       ;;
+    r) LOC_REPO_DIR="$OPTARG"
+       ;;
+    c) NO_CLONE="true"
+       ;;
+    m) COMMIT_MSG="$OPTARG"
+       ;;
+    n) NO_OP="-n"
+       ;;
+    v) VERBOSE="-v"
+       ;;
+    ?) echo "$0: FATAL: unknown or invalid -flag" 1>&2 ;
+       echo "$USAGE" 1>&2 ;
+       exit 1
+       ;;
+    esac
+done
+shift $(( OPTIND - 1 ));
+if [[ $# -ne 1 ]]; then
+    echo "$0: FATAL: expected only 1 directory argument" 1>&2 ;
+    echo "$USAGE" 1>&2 ;
+    exit 2
+fi
+export DIR="$1"
+
+# firewall
+#
+if [[ ! -e "$DIR" ]]; then
+    echo "$0: FATAL: directory does not exist: $DIR" 1>&2
+    exit 3
+fi
+if [[ ! -d "$DIR" ]]; then
+    echo "$0: FATAL: not a directory: $DIR" 1>&2
+    exit 4
+fi
+if [[ ! -e "$LOC_REPO_DIR" ]]; then
+    echo "$0: FATAL: repo directory does not exist: $LOC_REPO_DIR" 1>&2
+    exit 5
+fi
+if [[ ! -d "$LOC_REPO_DIR" ]]; then
+    echo "$0: FATAL: repo is not a directory: $LOC_REPO_DIR" 1>&2
+    exit 6
+fi
+
+# convert directory to an canonicalized absolute path
+#
+CANON_DIR=$(readlink --canonicalize-existing "$DIR" 2>/dev/null)
+status="$?"
+if [[ "$status" -ne 0 ]]; then
+    echo "$0: FATAL: cannot canonicalize $DIR, error code: $status" 1>&2
+    exit 7
+fi
+if [[ -z "$CANON_DIR" ]]; then
+    echo "$0: FATAL: DIR canonicalized $DIR to empty string" 1>&2
+    exit 8
+fi
+if [[ -n "$VERBOSE" ]]; then
+    echo "$0: Notice: will attempt to put $CANON_DIR under git control" 1>&2
+fi
+
+# move to the directory
+#
+if [[ -n "$VERBOSE" ]]; then
+   echo "$0: Notice: cd $CANON_DIR" 1>&2
+fi
+cd "$CANON_DIR"
+status="$?"
+if [[ "$status" -ne 0 ]]; then
+    echo "$0: FATAL: cannot cd $CANON_DIR, error code: $status" 1>&2
+    exit 9
+fi
+
+# reject if there is a similarly named git repo under $LOC_REPO_DIR
+#
+export NAME=$(basename "$CANON_DIR")
+if [[ -e "$LOC_REPO_DIR/$NAME" ]]; then
+    echo "$0: FATAL: similarly named git repo found under: $LOC_REPO_DIR/$NAME" 1>&2
+    exit 10
+fi
+if [[ -e "$LOC_REPO_DIR/$NAME.git" ]]; then
+    echo "$0: FATAL: similarly named git repo found under: $LOC_REPO_DIR/$NAME.git" 1>&2
+    exit 11
+fi
+
+# reject if already under git control or a sub-directory is under git control
+#
+if git rev-parse --is-inside-work >/dev/null 2>&1; then
+    export GIT_DIR_PATH=$(git rev-parse --git-dir 2>/dev/null)
+    if [[ -z "$GIT_DIR_PATH" ]]; then
+	echo "$0: FATAL: $DIR is under git control, but .git is unknown" 1>&2
+    else
+	NEW_GIT_DIR_PATH=$(readlink --canonicalize-existing "$GIT_DIR_PATH" 2>/dev/null)
+	if [[ -z "$NEW_GIT_DIR_PATH" ]]; then
+	    echo "$0: FATAL: $DIR is under git control: $GIT_DIR_PATH" 1>&2
+	else
+	    echo "$0: FATAL: $DIR is under git control: $NEW_GIT_DIR_PATH" 1>&2
+	fi
+    fi
+    exit 12
+fi
+
+# reject if sub-directory is under git control
+#
+SUB_GIT=$(find . -type d -name .git 2>/dev/null | head -1)
+if [[ -n "$SUB_GIT" ]]; then
+    NEW_SUB_GIT=$(readlink --canonicalize-existing "$SUB_GIT" 2>/dev/null)
+    if [[ -z "$NEW_SUB_GIT" ]]; then
+	echo "$0: FATAL: a sub-directory of $DIR appears to be under git control: $SUB_GIT" 1>&2
+    else
+	echo "$0: FATAL: a sub-directory of $DIR appears to be under git control: $NEW_SUB_GIT" 1>&2
+    fi
+    exit 13
+fi
+if [[ -n "$VERBOSE" ]]; then
+    echo "$0: Notice: $DIR is not under git control" 1>&2
+fi
+
+# put the directory under git
+#
+if [[ -n "$VERBOSE" ]]; then
+   echo "$0: Notice: git init" 1>&2
+fi
+if [[ -z "$NO_OP" ]]; then
+    git init
+    status="$?"
+    if [[ "$status" -ne 0 ]]; then
+	echo "$0: FATAL: git init error: $status" 1>&2
+	exit 14
+    fi
+fi
+
+# unless -b, add all files under the directory
+#
+if [[ -z "$NO_ADD" ]]; then
+    if [[ -n "$VERBOSE" ]]; then
+	echo "$0: Notice: git add -v ." 1>&2
+    fi
+    if [[ -z "$NO_OP" ]]; then
+	if [[ -n "$VERBOSE" ]]; then
+	    git add -v .
+	    status="$?"
+	    if [[ "$status" -ne 0 ]]; then
+		echo "$0: FATAL: git add error: $status" 1>&2
+		exit 15
+	    fi
+	else
+	    git add .
+	    status="$?"
+	    if [[ "$status" -ne 0 ]]; then
+		echo "$0: FATAL: git add error: $status" 1>&2
+		exit 16
+	    fi
+	fi
+    fi
+else
+    if [[ -n "$VERBOSE" ]]; then
+	echo "$0: Notice: git add skipped due to -b" 1>&2
+    fi
+fi
+
+# unless -a, commit add files
+#
+if [[ -z "$NO_COMMIT" ]]; then
+    if [[ -n "$VERBOSE" ]]; then
+	echo "$0: Notice: git commit -m '$COMMIT_MSG' $VERBOSE" 1>&2
+    fi
+    if [[ -z "$NO_OP" ]]; then
+	if [[ -n "$VERBOSE" ]]; then
+	    git commit -m "$COMMIT_MSG" -v
+	    status="$?"
+	    if [[ "$status" -ne 0 ]]; then
+		echo "$0: FATAL: git commit error: $status" 1>&2
+		exit 17
+	    fi
+	else
+	    git commit -m "$COMMIT_MSG"
+	    status="$?"
+	    if [[ "$status" -ne 0 ]]; then
+		echo "$0: FATAL: git commit error: $status" 1>&2
+		exit 18
+	    fi
+	fi
+    fi
+else
+    if [[ -n "$VERBOSE" ]]; then
+	echo "$0: Notice: git commit skipped due to -a" 1>&2
+    fi
+fi
+
+# unless -c, clone a bare repo under $LOC_REPO_DIR/$NAME.git
+#
+if [[ -z "$NO_CLONE" ]]; then
+
+    # cd to $LOC_REPO_DIR
+    #
+    if [[ -n "$VERBOSE" ]]; then
+       echo "$0: Notice: cd $LOC_REPO_DIR" 1>&2
+    fi
+    cd "$LOC_REPO_DIR"
+    status="$?"
+    if [[ "$status" -ne 0 ]]; then
+	echo "$0: FATAL: cannot cd $LOC_REPO_DIR, error code: $status" 1>&2
+	exit 19
+    fi
+
+    # determine if $LOC_REPO_DIR is same filesystem as $CANON_DIR
+    #
+    export CLONE_ARG="--no-hardlinks"
+    if df -P -- "$LOC_REPO_DIR" "$CANON_DIR" | awk 'NR==2 {dev1=$1} NR==3 {exit($1!=dev1)}'; then
+	CLONE_ARG=""
+    fi
+
+    # git clone
+    #
+    if [[ -n "$VERBOSE" ]]; then
+	if [[ -z "$CLONE_ARG" ]]; then
+	    echo "$0: Notice: git clone --bare --local $CANON_DIR" 1>&2
+	else
+	    echo "$0: Notice: git clone --bare --local $CLONE_ARG $CANON_DIR" 1>&2
+	fi
+    fi
+    if [[ -z "$NO_OP" ]]; then
+	if [[ -z "$CLONE_ARG" ]]; then
+	    git clone --bare --local "$CANON_DIR"
+	    status="$?"
+	    if [[ "$status" -ne 0 ]]; then
+		echo "$0: FATAL: git clone error: $status" 1>&2
+		exit 20
+	    fi
+	else
+	    git clone --bare --local "$CLONE_ARG" "$CANON_DIR"
+	    status="$?"
+	    if [[ "$status" -ne 0 ]]; then
+		echo "$0: FATAL: git clone error: $status" 1>&2
+		exit 21
+	    fi
+	fi
+    fi
+
+    # cd back to the directory
+    #
+    if [[ -n "$VERBOSE" ]]; then
+       echo "$0: Notice: cd $CANON_DIR" 1>&2
+    fi
+    cd "$CANON_DIR"
+    status="$?"
+    if [[ "$status" -ne 0 ]]; then
+	echo "$0: FATAL: cannot cd $CANON_DIR, error code: $status" 1>&2
+	exit 22
+    fi
+
+    # set git remote
+    #
+    if [[ -n "$VERBOSE" ]]; then
+	echo "$0: Notice: git remote -v add origin $LOC_REPO_DIR/$NAME" 1>&2
+    fi
+    if [[ -z "$NO_OP" ]]; then
+	if [[ -n "$VERBOSE" ]]; then
+	    git remote -v add origin "$LOC_REPO_DIR/$NAME"
+	else
+	    git remote add origin "$LOC_REPO_DIR/$NAME"
+	fi
+	status="$?"
+	if [[ "$status" -ne 0 ]]; then
+	    echo "$0: FATAL: git remote error: $status" 1>&2
+	    exit 23
+	fi
+    fi
+
+    # git fetch
+    #
+    if [[ -n "$VERBOSE" ]]; then
+	echo "$0: Notice: git fetch $VERBOSE" 1>&2
+    fi
+    if [[ -z "$NO_OP" ]]; then
+	if [[ -n "$VERBOSE" ]]; then
+	    git fetch -v
+	else
+	    git fetch
+	fi
+	status="$?"
+	if [[ "$status" -ne 0 ]]; then
+	    echo "$0: FATAL: git fetch error: $status" 1>&2
+	    exit 24
+	fi
+    fi
+
+    # show git remote
+    #
+    if [[ -n "$VERBOSE" && -z "$NO_OP" ]]; then
+	echo "$0: Notice: git remote -v" 1>&2
+	git remote -v
+	status="$?"
+	if [[ "$status" -ne 0 ]]; then
+	    echo "$0: FATAL: git remote error: $status" 1>&2
+	    exit 25
+	fi
+    fi
+else
+    if [[ -n "$VERBOSE" ]]; then
+	echo "$0: Notice: cd $CANON_DIR skipped due to -c" 1>&2
+	echo "$0: Notice: skipped due to -c: git clone --bare --local $CANON_DIR" 1>&2
+	echo "$0: Notice: skipped due to -c: git remote add origin $LOC_REPO_DIR/$NAME" 1>&2
+	echo "$0: Notice: skipped due to -c: git fetch" 1>&2
+	echo "$0: Notice: skipped due to -c: git remote -v" 1>&2
+    fi
+fi
+
+# All Done!!! -- Jessica Noll, Age 2
+#
+exit 0
