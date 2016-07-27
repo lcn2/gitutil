@@ -42,8 +42,8 @@ install: all
 	    echo ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${DESTBIN};
 	    ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${DESTBIN};
 	else \
-	    echo ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${ALTDESTBIN};
-	    ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${ALTDESTBIN};
+	    echo ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${ALTDESTBIN}; \
+	    ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${ALTDESTBIN}; \
 	fi
 
 clean:
