@@ -39,8 +39,8 @@ all: ${TARGETS}
 
 install: all
 	@-if [[ -d "${DESTBIN}" ]]; then \
-	    echo ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${DESTBIN};
-	    ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${DESTBIN};
+	    echo ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${DESTBIN}; \
+	    ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${DESTBIN}; \
 	else \
 	    echo ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${ALTDESTBIN}; \
 	    ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${ALTDESTBIN}; \
