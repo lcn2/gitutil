@@ -79,20 +79,32 @@ if [[ ! -d "$DIR" ]]; then
     exit 4
 fi
 
+# determine if readlink --canonicalize-existing works
+#
+# Some systems, such as older OS X, do not have a readlink
+# with a --canonicalize-existing argument.
+#
+export HAS_CANONICALIZE_EXISTING="true"
+if ! readlink --canonicalize-existing . >/dev/null 2>&1; then
+    HAS_CANONICALIZE_EXISTING=""
+fi
+
 # convert directory to an canonicalized absolute path
 #
-CANON_DIR=$(readlink --canonicalize-existing "$DIR" 2>/dev/null)
-status="$?"
-if [[ "$status" -ne 0 ]]; then
-    echo "$0: FATAL: cannot canonicalize $DIR, error code: $status" 1>&2
-    exit 5
-fi
-if [[ -z "$CANON_DIR" ]]; then
-    echo "$0: FATAL: DIR canonicalized $DIR to empty string" 1>&2
-    exit 6
-fi
-if [[ -n "$VERBOSE" ]]; then
-    echo "$0: Notice: will attempt to put $CANON_DIR under git control" 1>&2
+export CANON_DIR
+if [[ -n $HAS_CANONICALIZE_EXISTING ]]; then
+    CANON_DIR=$(readlink --canonicalize-existing "$DIR" 2>/dev/null)
+    status="$?"
+    if [[ "$status" -ne 0 ]]; then
+	echo "$0: FATAL: cannot canonicalize $DIR, error code: $status" 1>&2
+	exit 5
+    fi
+    if [[ -z "$CANON_DIR" ]]; then
+	echo "$0: FATAL: DIR canonicalized $DIR to empty string" 1>&2
+	exit 6
+    fi
+else
+    CANON_DIR=$(dirname "$DIR")/$(basename "$DIR")
 fi
 
 # move to the directory

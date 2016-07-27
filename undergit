@@ -109,20 +109,32 @@ if [[ ! -d "$LOC_REPO_DIR" ]]; then
     exit 6
 fi
 
+# determine if readlink --canonicalize-existing works
+#
+# Some systems, such as older OS X, do not have a readlink
+# with a --canonicalize-existing argument.
+#
+export HAS_CANONICALIZE_EXISTING="true"
+if ! readlink --canonicalize-existing . >/dev/null 2>&1; then
+    HAS_CANONICALIZE_EXISTING=""
+fi
+
 # convert directory to an canonicalized absolute path
 #
-CANON_DIR=$(readlink --canonicalize-existing "$DIR" 2>/dev/null)
-status="$?"
-if [[ "$status" -ne 0 ]]; then
-    echo "$0: FATAL: cannot canonicalize $DIR, error code: $status" 1>&2
-    exit 7
-fi
-if [[ -z "$CANON_DIR" ]]; then
-    echo "$0: FATAL: DIR canonicalized $DIR to empty string" 1>&2
-    exit 8
-fi
-if [[ -n "$VERBOSE" ]]; then
-    echo "$0: Notice: will attempt to put $CANON_DIR under git control" 1>&2
+export CANON_DIR
+if [[ -n $HAS_CANONICALIZE_EXISTING ]]; then
+    CANON_DIR=$(readlink --canonicalize-existing "$DIR" 2>/dev/null)
+    status="$?"
+    if [[ "$status" -ne 0 ]]; then
+	echo "$0: FATAL: cannot canonicalize $DIR, error code: $status" 1>&2
+	exit 7
+    fi
+    if [[ -z "$CANON_DIR" ]]; then
+	echo "$0: FATAL: DIR canonicalized $DIR to empty string" 1>&2
+	exit 8
+    fi
+else
+    CANON_DIR=$(dirname "$DIR")/$(basename "$DIR")
 fi
 
 # move to the directory
@@ -156,7 +168,11 @@ if git rev-parse --is-inside-work >/dev/null 2>&1; then
     if [[ -z "$GIT_DIR_PATH" ]]; then
 	echo "$0: FATAL: $DIR is under git control, but .git is unknown" 1>&2
     else
-	NEW_GIT_DIR_PATH=$(readlink --canonicalize-existing "$GIT_DIR_PATH" 2>/dev/null)
+	if [[ -n $HAS_CANONICALIZE_EXISTING ]]; then
+	    NEW_GIT_DIR_PATH=$(readlink --canonicalize-existing "$GIT_DIR_PATH" 2>/dev/null)
+	else
+	    NEW_GIT_DIR_PATH=$(dirname "$GIT_DIR_PATH")/$(basename "$GIT_DIR_PATH")
+	fi
 	if [[ -z "$NEW_GIT_DIR_PATH" ]]; then
 	    echo "$0: FATAL: $DIR is under git control: $GIT_DIR_PATH" 1>&2
 	else
@@ -170,7 +186,11 @@ fi
 #
 SUB_GIT=$(find . -type d -name .git 2>/dev/null | head -1)
 if [[ -n "$SUB_GIT" ]]; then
-    NEW_SUB_GIT=$(readlink --canonicalize-existing "$SUB_GIT" 2>/dev/null)
+    if [[ -n $HAS_CANONICALIZE_EXISTING ]]; then
+	NEW_SUB_GIT=$(readlink --canonicalize-existing "$SUB_GIT" 2>/dev/null)
+    else
+	NEW_SUB_GIT=$(dirname "$SUB_GIT")/$(basename "$SUB_GIT")
+    fi
     if [[ -z "$NEW_SUB_GIT" ]]; then
 	echo "$0: FATAL: a sub-directory of $DIR appears to be under git control: $SUB_GIT" 1>&2
     else
