@@ -30,6 +30,7 @@
 SHELL=/bin/bash
 BINMODE=0555
 DESTBIN=/usr/global/bin
+ALTDESTBIN=/usr/local/bin
 INSTALL=install
 
 TARGETS= undergit clonelocalgit clonermtgit syncgit
@@ -37,7 +38,13 @@ TARGETS= undergit clonelocalgit clonermtgit syncgit
 all: ${TARGETS}
 
 install: all
-	${INSTALL} -c -m ${BINMODE} ${TARGETS} ${DESTBIN}
+	@-if [[ -d "${DESTBIN}" ]]; then \
+	    echo ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${DESTBIN};
+	    ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${DESTBIN};
+	else \
+	    echo ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${ALTDESTBIN};
+	    ${INSTALL} -c -m ${BINMODE} ${TARGETS} ${ALTDESTBIN};
+	fi
 
 clean:
 
