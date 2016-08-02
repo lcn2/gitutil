@@ -110,13 +110,16 @@ fi
 # move to the directory
 #
 if [[ -n "$VERBOSE" ]]; then
-   echo "$0: Notice: cd $CANON_DIR" 1>&2
+    echo "$0: Notice: cd $CANON_DIR" 1>&2
 fi
 cd "$CANON_DIR"
 status="$?"
 if [[ "$status" -ne 0 ]]; then
     echo "$0: FATAL: cannot cd $CANON_DIR, error code: $status" 1>&2
     exit 7
+fi
+if [[ -n "$VERBOSE" ]]; then
+    echo 1>&2
 fi
 
 # reject if not under git control
@@ -129,7 +132,7 @@ fi
 # git fetch
 #
 if [[ -n "$VERBOSE" ]]; then
-   echo "$0: Notice: git fetch $VERBOSE" 1>&2
+    echo "$0: Notice: git fetch $VERBOSE" 1>&2
 fi
 if [[ -z "$NO_OP" ]]; then
     if [[ -n "$VERBOSE" ]]; then
@@ -148,13 +151,15 @@ if [[ -z "$NO_OP" ]]; then
 	fi
     fi
 fi
+if [[ -n "$VERBOSE" ]]; then
+    echo 1>&2
+fi
 
 # show changed files
 #
 unset LESS
 if [[ -n "$VERBOSE" ]]; then
     echo "$0: Notice: git show --pretty=format: --name-only HEAD..origin/master" 1>&2
-    echo 1>&2
     git show --pretty=format: --name-only HEAD..origin/master
     echo 1>&2
     status="$?"
@@ -162,6 +167,9 @@ if [[ -n "$VERBOSE" ]]; then
 	echo "$0: FATAL: git add error: $status" 1>&2
 	exit 11
     fi
+fi
+if [[ -n "$VERBOSE" ]]; then
+    echo 1>&2
 fi
 
 # git rebase
@@ -176,6 +184,9 @@ if [[ -z "$NO_OP" ]]; then
 	echo "$0: FATAL: git commit error: $status" 1>&2
 	exit 12
     fi
+fi
+if [[ -n "$VERBOSE" ]]; then
+    echo 1>&2
 fi
 
 # git push
@@ -199,6 +210,10 @@ if [[ -z "$NO_OP" ]]; then
 	    exit 14
 	fi
     fi
+    echo 1>&2
+fi
+if [[ -n "$VERBOSE" ]]; then
+    echo 1>&2
 fi
 
 # All Done!!! -- Jessica Noll, Age 2
