@@ -154,7 +154,9 @@ fi
 unset LESS
 if [[ -n "$VERBOSE" ]]; then
     echo "$0: Notice: git show --pretty=format: --name-only HEAD..origin/master" 1>&2
+    echo 1>&2
     git show --pretty=format: --name-only HEAD..origin/master
+    echo 1>&2
     status="$?"
     if [[ "$status" -ne 0 ]]; then
 	echo "$0: FATAL: git add error: $status" 1>&2
