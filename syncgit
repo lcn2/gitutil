@@ -210,10 +210,6 @@ if [[ -z "$NO_OP" ]]; then
 	    exit 14
 	fi
     fi
-    echo 1>&2
-fi
-if [[ -n "$VERBOSE" ]]; then
-    echo 1>&2
 fi
 
 # All Done!!! -- Jessica Noll, Age 2
