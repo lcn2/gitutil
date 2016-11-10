@@ -28,13 +28,17 @@
 
 # setup
 #
+export LOC_REPO_DIR="/usr/global/git"
+if [[ ! -d "$LOC_REPO_DIR" ]]; then
+    LOC_REPO_DIR="/usr/local/git"
+fi
 export USAGE="usage: $0 [-h] [-a] [-b] [-r locrepo] [-c] [-m commit] [-x tool] [-k] [-n] [-v] dir
 
 	-h          print this message and exit
 
 	-a	    do not commit (def: add all and commit)
 	-b	    do not add, do not commit (def: add all and commit)
-	-r locrepo  directory of the local git repo (def: /usr/global/git)
+	-r locrepo  directory of the local git repo (def: $LOC_REPO_DIR)
 	-c	    do not clone to locrepo (def: bare clone to locrepo)
 	-m commit   use commit message when committing (def: 'from RCS to git via rcs-fast-export')
 	-x tool	    path to the rcs-fast-export tool (def: /usr/local/bin/rcs-fast-export)
@@ -46,7 +50,6 @@ export USAGE="usage: $0 [-h] [-a] [-b] [-r locrepo] [-c] [-m commit] [-x tool] [
 	dir	    directory to place under git control"
 export NO_COMMIT=""
 export NO_ADD=""
-export LOC_REPO_DIR="/usr/global/git"
 export NO_CLONE=""
 export COMMIT_MSG="from RCS to git via rcs-fast-export"
 export RCS_FAST_EXPORT="/usr/local/bin/rcs-fast-export"

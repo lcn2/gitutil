@@ -2,10 +2,6 @@
 #
 # clonermtgit - clone a git repo from a remote host via ssh
 #
-# @(#) $Revision$
-# @(#) $Id$
-# @(#) $Source$
-#
 # Copyright (c) 2016 by Landon Curt Noll.  All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and
@@ -32,11 +28,15 @@
 
 # setup
 #
+export LOC_REPO_TREE="/usr/global/git"
+if [[ ! -d "$LOC_REPO_TREE" ]]; then
+    LOC_REPO_TREE="/usr/local/git"
+fi
 export USAGE="usage: $0 [-h] [-n] [-v] [-r repotree] repo_host repo_name parent_dir
 
 	-h            print this message and exit
 
-	-r repotree   tree on hostname containing reponame.git (def: /usr/global/git)
+	-r repotree   tree on hostname containing reponame.git (def: $LOC_REPO_TREE)
 
         -n            do not create anything
 	-v            be verbose
@@ -44,7 +44,6 @@ export USAGE="usage: $0 [-h] [-n] [-v] [-r repotree] repo_host repo_name parent_
 	repo_host    hostname containing the tree of git repos
 	repo_name    name of the git repo under repotree (without the .git)
 	parent_dir   clone the git repo under parent_dir/repo_name"
-export RMT_REPO_TREE="/usr/global/git"
 export VERBOSE=""
 export NO_OP=""
 

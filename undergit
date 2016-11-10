@@ -2,10 +2,6 @@
 #
 # undergit - place a local directory under git control
 #
-# @(#) $Revision$
-# @(#) $Id$
-# @(#) $Source$
-#
 # Copyright (c) 2016 by Landon Curt Noll.  All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and
@@ -32,13 +28,17 @@
 
 # setup
 #
+export LOC_REPO_DIR="/usr/global/git"
+if [[ ! -d "$LOC_REPO_DIR" ]]; then
+    LOC_REPO_DIR="/usr/local/git"
+fi
 export USAGE="usage: $0 [-h] [-a] [-b] [-r locrepo] [-c] [-m commit] [-n] [-v] dir
 
 	-h          print this message and exit
 
 	-a	    do not commit (def: add all and commit)
 	-b	    do not add, do not commit (def: add all and commit)
-	-r locrepo  directory of the local git repo (def: /usr/global/git)
+	-r locrepo  directory of the local git repo (def: $LOC_REPO_DIR)
 	-c	    do not clone to locrepo (def: bare clone to locrepo)
 	-m commit   use commit message when committing (def: 'under git control')
 
@@ -48,7 +48,6 @@ export USAGE="usage: $0 [-h] [-a] [-b] [-r locrepo] [-c] [-m commit] [-n] [-v] d
 	dir	    directory to place under git control"
 export NO_COMMIT=""
 export NO_ADD=""
-export LOC_REPO_DIR="/usr/global/git"
 export NO_CLONE=""
 export COMMIT_MSG="under git control"
 export VERBOSE=""

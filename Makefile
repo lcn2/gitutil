@@ -2,10 +2,6 @@
 #
 # gitutil - useful git utilities
 #
-# @(#) $Revision: 1.4 $
-# @(#) $Id: Makefile,v 1.4 1999/09/26 21:16:52 chongo Exp $
-# @(#) $Source: /usr/global/src/cmd/add/RCS/Makefile,v $
-#
 # Copyright (c) 2016 by Landon Curt Noll.  All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and
@@ -33,7 +29,7 @@ DESTBIN=/usr/global/bin
 ALTDESTBIN=/usr/local/bin
 INSTALL=install
 
-TARGETS= undergit clonelocalgit clonermtgit syncgit rcs2git
+TARGETS= undergit clonelocalgit clonermtgit syncgit rcs2git mkgitrepo
 
 all: ${TARGETS}
 

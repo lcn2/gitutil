@@ -2,10 +2,6 @@
 #
 # syncgit - rebase and sync changes with a git repository
 #
-# @(#) $Revision$
-# @(#) $Id$
-# @(#) $Source$
-#
 # Copyright (c) 2016 by Landon Curt Noll.  All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and
