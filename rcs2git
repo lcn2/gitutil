@@ -147,6 +147,9 @@ if [[ -n $HAS_CANONICALIZE_EXISTING ]]; then
 else
     CANON_DIR=$(dirname "$DIR")/$(basename "$DIR")
 fi
+if [[ -n "$VERBOSE" ]]; then
+    echo "$0: Notice: CANON_DIR: $CANON_DIR" 1>&2
+fi
 
 # move to the directory
 #
@@ -163,6 +166,9 @@ fi
 # reject if there is a similarly named git repo under $LOC_REPO_DIR
 #
 export NAME=$(basename "$CANON_DIR")
+if [[ -n "$VERBOSE" ]]; then
+    echo "$0: Notice: NAME: $NAME" 1>&2
+fi
 if [[ -e "$LOC_REPO_DIR/$NAME" ]]; then
     echo "$0: FATAL: similarly named git repo found under: $LOC_REPO_DIR/$NAME" 1>&2
     exit 11

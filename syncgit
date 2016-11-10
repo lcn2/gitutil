@@ -102,6 +102,9 @@ if [[ -n $HAS_CANONICALIZE_EXISTING ]]; then
 else
     CANON_DIR=$(dirname "$DIR")/$(basename "$DIR")
 fi
+if [[ -n "$VERBOSE" ]]; then
+    echo "$0: Notice: CANON_DIR: $CANON_DIR" 1>&2
+fi
 
 # move to the directory
 #
