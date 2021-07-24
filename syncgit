@@ -2,7 +2,7 @@
 #
 # syncgit - rebase and sync changes with a git repository
 #
-# Copyright (c) 2016 by Landon Curt Noll.  All Rights Reserved.
+# Copyright (c) 2016,2021 by Landon Curt Noll.  All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and
 # its documentation for any purpose and without fee is hereby granted,
@@ -100,7 +100,7 @@ if [[ -n $HAS_CANONICALIZE_EXISTING ]]; then
 	exit 6
     fi
 else
-    CANON_DIR=$(dirname "$DIR")/$(basename "$DIR")
+    CANON_DIR=$(perl -MCwd -e 'print Cwd::realpath($ARGV[0]), "\n"' "$DIR")
 fi
 if [[ -n "$VERBOSE" ]]; then
     echo "$0: Notice: CANON_DIR: $CANON_DIR" 1>&2

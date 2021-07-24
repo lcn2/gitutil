@@ -2,7 +2,7 @@
 #
 # undergit - place a local directory under git control
 #
-# Copyright (c) 2016 by Landon Curt Noll.  All Rights Reserved.
+# Copyright (c) 2016,2021 by Landon Curt Noll.  All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and
 # its documentation for any purpose and without fee is hereby granted,
@@ -133,7 +133,7 @@ if [[ -n $HAS_CANONICALIZE_EXISTING ]]; then
 	exit 8
     fi
 else
-    CANON_DIR=$(dirname "$DIR")/$(basename "$DIR")
+    CANON_DIR=$(perl -MCwd -e 'print Cwd::realpath($ARGV[0]), "\n"' "$DIR")
 fi
 if [[ -n "$VERBOSE" ]]; then
     echo "$0: Notice: CANON_DIR: $CANON_DIR" 1>&2
@@ -298,6 +298,9 @@ if [[ -z "$NO_CLONE" ]]; then
     # determine if $LOC_REPO_DIR is same filesystem as $CANON_DIR
     #
     export CLONE_ARG="--no-hardlinks"
+    if [[ -n "$VERBOSE" ]]; then
+	echo "$0: Notice: df -P -- $LOC_REPO_DIR $CANON_DIR | awk 'NR==2 {dev1=$1} NR==3 {exit($1!=dev1)}'"
+    fi
     if df -P -- "$LOC_REPO_DIR" "$CANON_DIR" | awk 'NR==2 {dev1=$1} NR==3 {exit($1!=dev1)}'; then
 	CLONE_ARG=""
     fi
