@@ -305,7 +305,7 @@ elif [[ -n $V_FLAG ]]; then
     echo "$0: notice: GitHub repo exists: $GITHUB_REPO_REMOTE"
 fi
 
-# require that a GitHub repo exists now
+# require that an empty GitHub repo exists now
 #
 export GITHUB_REPO_REMOTE="$GITHUB_REPO_BASE/$NAME.git"
 if [[ -n $V_FLAG ]]; then
@@ -317,8 +317,8 @@ if [[ $status -ne 0 ]]; then
     echo "$0: ERROR: cannot find GitHub repo: $GITHUB_REPO_REMOTE" 1>&2
     exit 1
 fi
-if [[ -z $GITHUB_LS_REMOTE ]]; then
-    echo "$0: ERROR: git ls-remote $GITHUB_REPO_REMOTE was empty" 1>&2
+if [[ -n $GITHUB_LS_REMOTE ]]; then
+    echo "$0: ERROR: git ls-remote $GITHUB_REPO_REMOTE was NOT empty" 1>&2
     exit 1
 elif [[ -n $V_FLAG ]]; then
     echo "$0: notice: GitHub is: $GITHUB_REPO_REMOTE"
