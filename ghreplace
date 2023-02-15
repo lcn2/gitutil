@@ -141,7 +141,7 @@ status=0
 cd "$DIR" || status="$?"
 if [[ $status -ne 0 ]]; then
     echo "$0: ERROR: cd $DIR failed, exit code: $status" 1>&2
-    exit 1
+    exit 10
 fi
 
 # check for only local origin
@@ -153,11 +153,11 @@ GIT_REMOTE=$(git remote)
 status="$?"
 if [[ $status -ne 0 ]]; then
     echo "$0: ERROR: git remote failed, exit code: $status" 1>&2
-    exit 1
+    exit 11
 fi
 if [[ $GIT_REMOTE != "origin" ]]; then
     echo "$0: ERROR: git remote is not origin: $GIT_REMOTE" 1>&2
-    exit 1
+    exit 12
 fi
 if [[ -n $V_FLAG ]]; then
     echo "$0: notice: git remote get-url origin"
@@ -166,7 +166,7 @@ export GIT_LOCAL_REPO_NAME="$LOCAL_GIT_TREE/$NAME"
 GIT_REMOTE_ORIGIN=$(git remote get-url origin)
 if [[ $GIT_REMOTE_ORIGIN != "$GIT_LOCAL_REPO_NAME" ]]; then
     echo "$0: ERROR: git remote origin is not $GIT_LOCAL_REPO_NAME: $GIT_REMOTE_ORIGIN" 1>&2
-    exit 1
+    exit 13
 fi
 
 # verify that the local git repo exists
@@ -174,7 +174,7 @@ fi
 export LOCAL_GIT_REPO_DIR="$GIT_REMOTE_ORIGIN.git"
 if [[ ! -d $LOCAL_GIT_REPO_DIR ]]; then
     echo "$0: ERROR: local git repo missing: $LOCAL_GIT_REPO_DIR" 1>&2
-    exit 1
+    exit 14
 fi
 
 # verify we are on the master branch
@@ -186,11 +186,11 @@ CURRENT_BRANCH=$(git branch --show-current)
 status="$?"
 if [[ $status -ne 0 ]]; then
     echo "$0: ERROR: git branch --show-current failed, exit code: $status" 1>&2
-    exit 1
+    exit 15
 fi
 if [[ $CURRENT_BRANCH != master ]]; then
     echo "$0: ERROR: git branch is not master: $CURRENT_BRANCH" 1>&2
-    exit 1
+    exit 16
 fi
 
 # fetch all remote branches and tags
@@ -203,7 +203,7 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: git fetch origin failed, exit code: $status" 1>&2
-	exit 1
+	exit 17
     fi
 fi
 
@@ -216,11 +216,11 @@ IS_CLEAN=$(git status --porcelain)
 status="$?"
 if [[ $status -ne 0 ]]; then
     echo "$0: ERROR: git status --porcelain failed, exit code: $status" 1>&2
-    exit 1
+    exit 18
 fi
 if [[ -n $IS_CLEAN ]]; then
     echo "$0: ERROR: local git repo is not clean: $IS_CLEAN" 1>&2
-    exit 1
+    exit 19
 fi
 
 # require that an non-empty GitHub repo exists now
@@ -233,11 +233,11 @@ GITHUB_LS_REMOTE=$(git ls-remote "$GITHUB_REPO_REMOTE" 2>/dev/null)
 status="$?"
 if [[ $status -ne 0 ]]; then
     echo "$0: ERROR: cannot find GitHub repo: $GITHUB_REPO_REMOTE" 1>&2
-    exit 1
+    exit 20
 fi
 if [[ -z $GITHUB_LS_REMOTE ]]; then
     echo "$0: ERROR: git ls-remote $GITHUB_REPO_REMOTE is empty" 1>&2
-    exit 1
+    exit 21
 elif [[ -n $V_FLAG ]]; then
     echo "$0: notice: GitHub is: $GITHUB_REPO_REMOTE"
 fi
@@ -248,11 +248,11 @@ status=0
 cd "$LOCAL_SRC_TREE" || status="$?"
 if [[ $status -ne 0 ]]; then
     echo "$0: ERROR: cd $LOCAL_SRC_TREE failed, exit code: $status" 1>&2
-    exit 1
+    exit 22
 fi
 if [[ ! -d $NAME ]]; then
     echo "$0: ERROR: $NAME is not a directory under $LOCAL_SRC_TREE" 1>&2
-    exit 1
+    exit 23
 fi
 
 # verify that GitHub has updated data
@@ -274,14 +274,14 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: rm -rf $LOCAL_GIT_REPO_DIR failed, exit code: $status" 1>&2
-	exit 1
+	exit 24
     fi
 
     # verify local git repo is now gone
     #
     if [[ -e $LOCAL_GIT_REPO_DIR ]]; then
 	echo "$0: ERROR: local git repo still exists: $LOCAL_GIT_REPO_DIR" 1>&2
-	exit 1
+	exit 25
     elif [[ -n $V_FLAG ]]; then
 	echo "$0: notice: local git repo removed: $LOCAL_GIT_REPO_DIR"
     fi
@@ -297,14 +297,14 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: rm -rf $DIR failed, exit code: $status" 1>&2
-	exit 1
+	exit 26
     fi
 
     # verify local git repo is now gone
     #
     if [[ -e $DIR ]]; then
 	echo "$0: ERROR: local src tree still exists: $DIR" 1>&2
-	exit 1
+	exit 27
     elif [[ -n $V_FLAG ]]; then
 	echo "$0: notice: local src tree removed: $DIR"
     fi
@@ -320,18 +320,18 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: git clone $GITHUB_REPO_REMOTE failed, exit code: $status" 1>&2
-	exit 1
+	exit 28
     fi
 
     # verify local git repo exists
     #
     if [[ ! -d $LOCAL_GIT_REPO_DIR ]]; then
 	echo "$0: ERROR: local git repo is missing: $LOCAL_GIT_REPO_DIR" 1>&2
-	exit 1
+	exit 29
     fi
     if [[ ! -d $LOCAL_GIT_REPO_DIR/.git ]]; then
 	echo "$0: ERROR: local git repo .git tree is missing: $LOCAL_GIT_REPO_DIR/.git" 1>&2
-	exit 1
+	exit 39
     fi
 fi
 
