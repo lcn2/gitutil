@@ -219,6 +219,20 @@ if [[ -n $IS_CLEAN ]]; then
     exit 1
 fi
 
+# set branch master upstream branch
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git push --set-upstream origin master"
+fi
+if [[ -z $N_FLAG ]]; then
+    git push --set-upstream origin master
+    status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: git push --set-upstream origin master failed, exit code: $status" 1>&2
+	exit 1
+    fi
+fi
+
 # verify the Makefile exists
 #
 MAKEFILE="$DIR/Makefile"
@@ -285,7 +299,7 @@ if [[ -z $GITHUB_REPO_EXISTS ]]; then
     echo
     echo "$0: notice: click ((Create repository)) at the bottom"
     echo
-    read -r -p "Press return when done, of ^C to abort: "
+    read -r -p "Press return when done, or ^C to abort: "
     echo
 elif [[ -n $V_FLAG ]]; then
     echo "$0: notice: GitHub repo exists: $GITHUB_REPO_REMOTE"
@@ -421,7 +435,7 @@ GITHUB_REPO_URL="$GITHUB_USER_URL/$NAME"
 echo
 echo "$0: notice: visit and verify GitHub contents: $GITHUB_REPO_URL"
 echo
-read -r -p "Press return when done, of ^C to abort: "
+read -r -p "Press return when done, or ^C to abort: "
 echo
 
 # remove the local git repo exists
