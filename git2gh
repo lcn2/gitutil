@@ -227,13 +227,13 @@ fi
 # set branch master upstream branch
 #
 if [[ -n $V_FLAG ]]; then
-    echo "$0: notice: git push --set-upstream origin master"
+    echo "$0: notice: git branch --set-upstream-to=origin/master"
 fi
 if [[ -z $N_FLAG ]]; then
-    git push --set-upstream origin master
+    git branch --set-upstream-to=origin/master
     status="$?"
     if [[ $status -ne 0 ]]; then
-	echo "$0: ERROR: git push --set-upstream origin master failed, exit code: $status" 1>&2
+	echo "$0: ERROR: git branch --set-upstream-to=origin/master failed, exit code: $status" 1>&2
 	exit 1
     fi
 fi
@@ -431,6 +431,36 @@ if [[ -z $N_FLAG ]]; then
     if [[ $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE" ]]; then
 	echo "$0: ERROR: git remote origin is not $GITHUB_REPO_REMOTE: $GIT_REMOTE_ORIGIN" 1>&2
 	exit 1
+    fi
+
+    # verify we are on the master branch
+    #
+    if [[ -n $V_FLAG ]]; then
+	echo "$0: notice: git branch --show-current"
+    fi
+    CURRENT_BRANCH=$(git branch --show-current)
+    status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: git branch --show-current failed, exit code: $status" 1>&2
+	exit 1
+    fi
+    if [[ $CURRENT_BRANCH != master ]]; then
+	echo "$0: ERROR: git branch is not master: $CURRENT_BRANCH" 1>&2
+	exit 1
+    fi
+
+    # set branch master upstream branch
+    #
+    if [[ -n $V_FLAG ]]; then
+	echo "$0: notice: git branch --set-upstream-to=origin/master"
+    fi
+    if [[ -z $N_FLAG ]]; then
+	git branch --set-upstream-to=origin/master
+	status="$?"
+	if [[ $status -ne 0 ]]; then
+	    echo "$0: ERROR: git branch --set-upstream-to=origin/master failed, exit code: $status" 1>&2
+	    exit 1
+	fi
     fi
 fi
 
