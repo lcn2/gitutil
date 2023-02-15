@@ -1,0 +1,454 @@
+#!/usr/bin/env bash
+#
+# git2github - conway repo to GitHub step 0
+#
+# Convert a local repo to a GitHub repo with all branches, history and tags.
+#
+# Copyright (c) 2023 by Landon Curt Noll.  All Rights Reserved.
+#
+# Permission to use, copy, modify, and distribute this software and
+# its documentation for any purpose and without fee is hereby granted,
+# provided that the above copyright, this permission notice and text
+# this comment, and the disclaimer below appear in all of the following:
+#
+#       supporting documentation
+#       source copies
+#       source works derived from this source
+#       binaries derived from this source or from derived source
+#
+# LANDON CURT NOLL DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+# INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO
+# EVENT SHALL LANDON CURT NOLL BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+# CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+# USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+# OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+#
+# chongo (Landon Curt Noll, http://www.isthe.com/chongo/index.html) /\oo/\
+#
+# Share and enjoy! :-)
+
+# setup
+#
+export GITHUB_USER="lcn2"
+export LOCAL_SRC_TREE="/usr/local/src/bin"
+export LOCAL_GIT_TREE="/usr/global/git"
+export GITHUB_REPO_BASE="git@github.com:$GITHUB_USER"
+export GITHUB_USER_URL="https://github.com/$GITHUB_USER"
+export N_FLAG=
+export V_FLAG=
+export USAGE="usage: $0 [-h] [-n] [-v] [-g gittree] [-s srctop] [-u user] dirname
+
+    -h		print help and exit
+    -n		do not change anything
+    -v		be verbose
+
+    -s srctop	path to top of source where name is found (def: $LOCAL_SRC_TREE)
+    -g gittree	path to local git tree (def: $LOCAL_GIT_TREE)
+    -u user	GitHub username (def: $GITHUB_USER)
+		    default GitHub Repo base: $GITHUB_REPO_BASE
+		    default GitHub Repo URL: $GITHUB_USER_URL
+
+    name	directory under $LOCAL_SRC_TREE to process
+
+Exit codes:
+    0	all is OK
+    1	operation failed
+    2	print help and exit
+    3	command line error
+ >=10	internal error"
+
+# parse args
+#
+while getopts :hnvg:s:u: flag; do
+    case "$flag" in
+    h) echo "$USAGE"
+       exit 2
+       ;;
+    v) V_FLAG="-v"
+       ;;
+    n) N_FLAG="-n"
+       ;;
+    g) LOCAL_GIT_TREE="$OPTARG"
+       ;;
+    s) LOCAL_SRC_TREE="$OPTARG"
+       ;;
+    u) GITHUB_USER="$OPTARG"
+       GITHUB_REPO_BASE="git@github.com:$GITHUB_USER"
+       GITHUB_USER_URL="https://github.com/$GITHUB_USER"
+       ;;
+    \?) echo "invalid option: -$OPTARG" 1>&2
+	echo "$USAGE" 1>&2
+        exit 3
+	;;
+    :)  echo "option -$OPTARG requires an argument" 1>&2
+	echo "$USAGE" 1>&2
+	exit 3
+	;;
+    esac
+done
+shift $(( OPTIND - 1 ));
+if [[ $# -ne 1 ]]; then
+    echo "$0: ERROR: expected 1 arg" 1>&2
+    echo "$USAGE" 1>&2
+    exit 3
+fi
+export NAME="$1"
+export DIR="$LOCAL_SRC_TREE/$NAME"
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: NAME: $NAME"
+    echo "$0: notice: DIR: $DIR"
+    echo "$0: notice: LOCAL_GIT_TREE: $LOCAL_GIT_TREE"
+    echo "$0: notice: LOCAL_SRC_TREE: $LOCAL_SRC_TREE"
+    echo "$0: notice: GITHUB_USER: $GITHUB_USER"
+    echo "$0: notice: GITHUB_REPO_BASE: $GITHUB_REPO_BASE"
+    echo "$0: notice: GITHUB_USER_URL: $GITHUB_USER_URL"
+fi
+
+# verify dirname is a writable directory under $LOCAL_SRC_TREE
+#
+if [[ ! -e $DIR ]]; then
+    echo "$0: directory does not exist: $DIR" 1>&2
+    exit 1
+fi
+if [[ ! -d $DIR ]]; then
+    echo "$0: does not a directory: $DIR" 1>&2
+    exit 1
+fi
+if [[ ! -w $DIR ]]; then
+    echo "$0: does not a writable directory: $DIR" 1>&2
+    exit 1
+fi
+
+# verify directory is under git control and NOT under RCS
+#
+if [[ ! -d $DIR/.git ]]; then
+    echo "$0: not under git control: $DIR" 1>&2
+    exit 1
+fi
+if [[ -d $DIR/RCS ]]; then
+    echo "$0: still under RCS control: $DIR" 1>&2
+    exit 1
+fi
+
+# move into the directory
+#
+status=0
+cd "$DIR" || status="$?"
+if [[ $status -ne 0 ]]; then
+    echo "$0: ERROR: cd $DIR failed, exit code: $status" 1>&2
+    exit 1
+fi
+
+# check for only local origin
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git remote"
+fi
+GIT_REMOTE=$(git remote)
+status="$?"
+if [[ $status -ne 0 ]]; then
+    echo "$0: ERROR: git remote failed, exit code: $status" 1>&2
+    exit 1
+fi
+if [[ $GIT_REMOTE != "origin" ]]; then
+    echo "$0: ERROR: git remote is not origin: $GIT_REMOTE" 1>&2
+    exit 1
+fi
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git remote get-url origin"
+fi
+export GIT_LOCAL_REPO_NAME="$LOCAL_GIT_TREE/$NAME"
+GIT_REMOTE_ORIGIN=$(git remote get-url origin)
+if [[ $GIT_REMOTE_ORIGIN != "$GIT_LOCAL_REPO_NAME" ]]; then
+    echo "$0: ERROR: git remote origin is not $GIT_LOCAL_REPO_NAME: $GIT_REMOTE_ORIGIN" 1>&2
+    exit 1
+fi
+
+# verify that the local git repo exists
+#
+export LOCAL_GIT_REPO_DIR="$GIT_REMOTE_ORIGIN.git"
+if [[ ! -d $LOCAL_GIT_REPO_DIR ]]; then
+    echo "$0: ERROR: local git repo missing: $LOCAL_GIT_REPO_DIR" 1>&2
+    exit 1
+fi
+
+# verify we are on the master branch
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git branch --show-current"
+fi
+CURRENT_BRANCH=$(git branch --show-current)
+status="$?"
+if [[ $status -ne 0 ]]; then
+    echo "$0: ERROR: git branch --show-current failed, exit code: $status" 1>&2
+    exit 1
+fi
+if [[ $CURRENT_BRANCH != master ]]; then
+    echo "$0: ERROR: git branch is not master: $CURRENT_BRANCH" 1>&2
+    exit 1
+fi
+
+# fetch all remote branches and tags
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git fetch origin"
+fi
+if [[ -z $N_FLAG ]]; then
+    git fetch origin
+    status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: git fetch origin failed, exit code: $status" 1>&2
+	exit 1
+    fi
+fi
+
+# verify that the local git repo is clean
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git status --porcelain"
+fi
+IS_CLEAN=$(git status --porcelain)
+status="$?"
+if [[ $status -ne 0 ]]; then
+    echo "$0: ERROR: git status --porcelain failed, exit code: $status" 1>&2
+    exit 1
+fi
+if [[ -n $IS_CLEAN ]]; then
+    echo "$0: ERROR: local git repo is not clean: $IS_CLEAN" 1>&2
+    exit 1
+fi
+
+# verify the Makefile exists
+#
+MAKEFILE="$DIR/Makefile"
+if [[ ! -f $MAKEFILE ]]; then
+    echo "$0: ERROR: missing Makefile: $MAKEFILE" 1>&2
+    exit 1
+fi
+
+# verify proper #! line in Makefile
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: head -1 $MAKEFILE"
+fi
+HASHBANG=$(head -1 "$MAKEFILE")
+if [[ $HASHBANG != "#!/usr/bin/env make" ]]; then
+    echo "$0: ERROR: improper #! line in Makefile: $MAKEFILE" 1>&2
+    echo "$0: ERROR: found: $HASHBANG" 1>&2
+    echo "$0: ERROR: expected: #!/usr/bin/env make" 1>&2
+    exit 1
+fi
+
+# see if a GitHub repo exists
+#
+GITHUB_REPO_REMOTE="$GITHUB_REPO_BASE/$NAME"
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git ls-remote $GITHUB_REPO_REMOTE 2>/dev/null"
+fi
+GITHUB_LS_REMOTE=$(git ls-remote "$GITHUB_REPO_REMOTE" 2>/dev/null)
+status="$?"
+if [[ $status -eq 0 ]]; then
+    GITHUB_REPO_EXISTS="true"
+else
+    GITHUB_REPO_EXISTS=
+fi
+export GITHUB_REPO_EXISTS
+
+# look for summary comment line in Makefile
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: grep -E  '^# [^-][^-]* -' $MAKEFILE | head -1"
+fi
+SUMMARY=$(grep -E  '^# [^-][^-]* -' "$MAKEFILE" | head -1)
+if [[ -z $SUMMARY ]]; then
+    echo "$0: ERROR: did not find summary comment line in Makefile: $MAKEFILE" 1>&2
+    exit 1
+fi
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: summary comment line: $SUMMARY"
+fi
+
+# if we do not key have a GitHub repo, ask that it be created
+#
+if [[ -z $GITHUB_REPO_EXISTS ]]; then
+    echo "$0: notice: GitHub repo does not yet exist"
+    echo "$0: notice: Create a private GitHub empty via: $GITHUB_USER_URL"
+    echo "$0: notice: Press the + in the upper right corner and select: 'New repository'"
+    echo
+    echo "$0: notice: Enter Repository name"
+    echo "$0: notice: Enter Description"
+    echo
+    echo "$0: notice: Enter data based on: $SUMMARY"
+    echo
+    echo "$0: notice: Select (*) Private"
+    echo
+    echo "$0: notice: click ((Create repository)) at the bottom"
+    echo
+    read -r -p "Press return when done, of ^C to abort: "
+    echo
+elif [[ -n $V_FLAG ]]; then
+    echo "$0: notice: GitHub repo exists: $GITHUB_REPO_REMOTE"
+fi
+
+# require that a GitHub repo exists now
+#
+export GITHUB_REPO_REMOTE="$GITHUB_REPO_BASE/$NAME.git"
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git ls-remote $GITHUB_REPO_REMOTE 2>/dev/null"
+fi
+GITHUB_LS_REMOTE=$(git ls-remote "$GITHUB_REPO_REMOTE" 2>/dev/null)
+status="$?"
+if [[ $status -ne 0 ]]; then
+    echo "$0: ERROR: cannot find GitHub repo: $GITHUB_REPO_REMOTE" 1>&2
+    exit 1
+fi
+if [[ -z $GITHUB_LS_REMOTE ]]; then
+    echo "$0: ERROR: git ls-remote $GITHUB_REPO_REMOTE was empty" 1>&2
+    exit 1
+elif [[ -n $V_FLAG ]]; then
+    echo "$0: notice: GitHub is: $GITHUB_REPO_REMOTE"
+fi
+
+# add a new repo as a new remote origin
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git remote add new-origin $GITHUB_REPO_REMOTE"
+fi
+if [[ -z $N_FLAG ]]; then
+    git remote add new-origin "$GITHUB_REPO_REMOTE"
+    status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: git remote add new-origin $GITHUB_REPO_REMOTE failed, exit code: $status" 1>&2
+	exit 1
+    fi
+
+    # verify that the new remote origin exists and has the correct URL
+    #
+    if [[ -n $V_FLAG ]]; then
+	echo "$0: notice: git remote get-url new-origin"
+    fi
+    GIT_REMOTE_ORIGIN=$(git remote get-url new-origin 2>/dev/null)
+    if [[ $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE" ]]; then
+	echo "$0: ERROR: git remote new-origin not found or is not: $GITHUB_REPO_REMOTE" 1>&2
+	exit 1
+    fi
+fi
+
+# push all local branches to the "new repo"
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git push --all new-origin"
+fi
+if [[ -z $N_FLAG ]]; then
+    git push --all new-origin
+    status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: git push --all new-origin failed, exit code: $status" 1>&2
+	exit 1
+    fi
+fi
+
+# push all tags to the "new repo"
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git push --tags new-origin"
+fi
+if [[ -z $N_FLAG ]]; then
+    git push --tags new-origin
+    status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: git push --tags new-origin failed, exit code: $status" 1>&2
+	exit 1
+    fi
+fi
+
+# remote "old repo" remote
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git remote rm origin"
+fi
+if [[ -z $N_FLAG ]]; then
+    git remote rm origin
+    status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: git remote rm origin failed, exit code: $status" 1>&2
+	exit 1
+    fi
+fi
+
+# rename "new repo" remote into just origin
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: git remote rename new-origin origin"
+fi
+if [[ -z $N_FLAG ]]; then
+    git remote rename new-origin origin
+    status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: git remote rename new-origin origin failed, exit code: $status" 1>&2
+	exit 1
+    fi
+
+    # verify that the origin is now on GitHub
+    #
+    if [[ -n $V_FLAG ]]; then
+	echo "$0: notice: git remote"
+    fi
+    GIT_REMOTE=$(git remote)
+    status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: git remote failed, exit code: $status" 1>&2
+	exit 1
+    fi
+    if [[ $GIT_REMOTE != "origin" ]]; then
+	echo "$0: ERROR: git remote is not origin: $GIT_REMOTE" 1>&2
+	exit 1
+    fi
+    if [[ -n $V_FLAG ]]; then
+	echo "$0: notice: git remote get-url origin"
+    fi
+    GIT_REMOTE_ORIGIN=$(git remote get-url origin)
+    if [[ $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE" ]]; then
+	echo "$0: ERROR: git remote origin is not $GITHUB_REPO_REMOTE: $GIT_REMOTE_ORIGIN" 1>&2
+	exit 1
+    fi
+fi
+
+# verify that GitHub has updated data
+#
+GITHUB_REPO_URL="$GITHUB_USER_URL/$NAME"
+echo
+echo "$0: notice: visit and verify GitHub contents: $GITHUB_REPO_URL"
+echo
+read -r -p "Press return when done, of ^C to abort: "
+echo
+
+# remove the local git repo exists
+#
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: rm -rf $LOCAL_GIT_REPO_DIR"
+fi
+if [[ -z $N_FLAG ]]; then
+    rm -rf "$LOCAL_GIT_REPO_DIR"
+    status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: rm -rf $LOCAL_GIT_REPO_DIR failed, exit code: $status" 1>&2
+	exit 1
+    fi
+
+    # verify local git repo is now gone
+    #
+    if [[ -e $LOCAL_GIT_REPO_DIR ]]; then
+	echo "$0: ERROR: local git repo still exists: $LOCAL_GIT_REPO_DIR" 1>&2
+	exit 1
+    elif [[ -n $V_FLAG ]]; then
+	echo "$0: notice: local git repo removed: $LOCAL_GIT_REPO_DIR"
+    fi
+fi
+
+# All Done!!! -- Jessica Noll, Age 2
+#
+echo
+echo "$0: notice: $DIR now lives in GitHub at: $GITHUB_REPO_URL"
+exit 0

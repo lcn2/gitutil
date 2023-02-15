@@ -1,8 +1,8 @@
-#!/usr/bin/make
+#!/usr/bin/env make
 #
 # gitutil - useful git utilities
 #
-# Copyright (c) 2016 by Landon Curt Noll.  All Rights Reserved.
+# Copyright (c) 2016,2023 by Landon Curt Noll.  All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and
 # its documentation for any purpose and without fee is hereby granted,
@@ -23,13 +23,13 @@
 #
 # Share and enjoy!
 
-SHELL=/bin/bash
+SHELL= bash
 BINMODE=0555
 DESTBIN=/usr/global/bin
 ALTDESTBIN=/usr/local/bin
 INSTALL=install
 
-TARGETS= undergit clonelocalgit clonermtgit syncgit rcs2git mkgitrepo
+TARGETS= undergit clonelocalgit clonermtgit syncgit rcs2git mkgitrepo git2github
 
 all: ${TARGETS}
 
