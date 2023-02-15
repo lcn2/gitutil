@@ -380,6 +380,24 @@ if [[ -z "$NO_CLONE" ]]; then
 	fi
     fi
 
+    # set branch master upstream branch
+    #
+    if [[ -n "$VERBOSE" ]]; then
+	echo "$0: Notice: git branch --set-upstream-to=origin/master" 1>&2
+    fi
+    if [[ -z "$NO_OP" ]]; then
+	if [[ -n "$VERBOSE" ]]; then
+	    git branch -v --set-upstream-to=origin/master
+	else
+	    git branch --set-upstream-to=origin/master
+	fi
+	status="$?"
+	if [[ "$status" -ne 0 ]]; then
+	    echo "$0: FATAL: git branch --set-upstream-to=origin/master error: $status" 1>&2
+	    exit 25
+	fi
+    fi
+
     # show git remote
     #
     if [[ -n "$VERBOSE" && -z "$NO_OP" ]]; then
@@ -388,7 +406,7 @@ if [[ -z "$NO_CLONE" ]]; then
 	status="$?"
 	if [[ "$status" -ne 0 ]]; then
 	    echo "$0: FATAL: git remote error: $status" 1>&2
-	    exit 25
+	    exit 26
 	fi
     fi
 else
@@ -397,6 +415,7 @@ else
 	echo "$0: Notice: skipped due to -c: git clone --bare --local $CANON_DIR" 1>&2
 	echo "$0: Notice: skipped due to -c: git remote add origin $LOC_REPO_DIR/$NAME" 1>&2
 	echo "$0: Notice: skipped due to -c: git fetch" 1>&2
+	echo "$0: Notice: skipped due to -c: git branch --set-upstream-to=origin/master" 1>&2
 	echo "$0: Notice: skipped due to -c: git remote -v" 1>&2
     fi
 fi
