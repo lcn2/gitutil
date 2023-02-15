@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# git2github - convert a local git repo into a GitHub repo
+# git2gh - convert a local git repo into a GitHub repo
 #
 # Convert a local repo to a GitHub repo with all branches, history and tags.
 #

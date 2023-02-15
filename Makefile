@@ -29,7 +29,7 @@ DESTBIN=/usr/global/bin
 ALTDESTBIN=/usr/local/bin
 INSTALL=install
 
-TARGETS= undergit clonelocalgit clonermtgit syncgit rcs2git mkgitrepo git2github
+TARGETS= undergit clonelocalgit clonermtgit syncgit rcs2git mkgitrepo git2gh
 
 all: ${TARGETS}
 
