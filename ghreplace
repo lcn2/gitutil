@@ -325,13 +325,13 @@ if [[ -z $N_FLAG ]]; then
 
     # verify local git repo exists
     #
-    if [[ ! -d $LOCAL_GIT_REPO_DIR ]]; then
-	echo "$0: ERROR: local git repo is missing: $LOCAL_GIT_REPO_DIR" 1>&2
+    if [[ ! -d $DIR ]]; then
+	echo "$0: ERROR: local src tree for $NAME is missing: $DIR" 1>&2
 	exit 29
     fi
-    if [[ ! -d $LOCAL_GIT_REPO_DIR/.git ]]; then
-	echo "$0: ERROR: local git repo .git tree is missing: $LOCAL_GIT_REPO_DIR/.git" 1>&2
-	exit 39
+    if [[ ! -d $DIR/.git ]]; then
+	echo "$0: ERROR: local src .git tree for $NAME is missing: $DIR/.git" 1>&2
+	exit 30
     fi
 fi
 
