@@ -24,12 +24,13 @@
 # Share and enjoy!
 
 SHELL= bash
-BINMODE=0555
-DESTBIN=/usr/global/bin
-ALTDESTBIN=/usr/local/bin
-INSTALL=install
+BINMODE= 0555
+DESTBIN= /usr/global/bin
+ALTDESTBIN= /usr/local/bin
+INSTALL= install
 
-TARGETS= undergit clonelocalgit clonermtgit syncgit rcs2git mkgitrepo git2gh
+TARGETS= undergit clonelocalgit clonermtgit syncgit rcs2git mkgitrepo \
+	git2gh ghreplace
 
 all: ${TARGETS}
 
