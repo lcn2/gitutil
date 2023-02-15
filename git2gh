@@ -469,5 +469,5 @@ fi
 # All Done!!! -- Jessica Noll, Age 2
 #
 echo
-echo "$0: notice: $DIR now lives in GitHub at: $GITHUB_REPO_URL"
+echo "$0: notice: $DIR now lives on GitHub at: $GITHUB_REPO_URL"
 exit 0
