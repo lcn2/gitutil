@@ -167,7 +167,7 @@ export GIT_LOCAL_REPO_PATH="$LOCAL_GIT_TREE/$NAME"
 export GIT_LOCAL_REPO_PATH_GIT="$GIT_LOCAL_REPO_PATH.git"
 GIT_REMOTE_ORIGIN=$(git remote get-url origin)
 if [[ $GIT_REMOTE_ORIGIN != "$GIT_LOCAL_REPO_PATH" && $GIT_REMOTE_ORIGIN != "$GIT_LOCAL_REPO_PATH_GIT" ]]; then
-    echo "$0: ERROR: git remote origin is $GIT_REMOTE_ORIGIN != $GIT_LOCAL_REPO_PATH" 1>&2
+    echo "$0: ERROR: git remote get-url origin: $GIT_REMOTE_ORIGIN is neither $GIT_LOCAL_REPO_PATH nor $GIT_LOCAL_REPO_PATH_GIT" 1>&2
     exit 13
 fi
 
@@ -212,7 +212,7 @@ if [[ $status -ne 0 ]]; then
     exit 18
 fi
 if [[ $CURRENT_BRANCH != master ]]; then
-    echo "$0: ERROR: git branch is not master: $CURRENT_BRANCH" 1>&2
+    echo "$0: ERROR: git branch --show-current is not master: $CURRENT_BRANCH" 1>&2
     exit 19
 fi
 
@@ -371,11 +371,11 @@ if [[ -z $N_FLAG ]]; then
     fi
     GIT_REMOTE_ORIGIN=$(git remote get-url new-origin 2>/dev/null)
     if [[ -z $GIT_REMOTE_ORIGIN ]]; then
-	echo "$0: ERROR: git remote new-origin is emoty" 1>&2
+	echo "$0: ERROR: git remote new-origin is empty" 1>&2
 	exit 30
     fi
     if [[ $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE" && $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE_GIT" ]]; then
-	echo "$0: ERROR: git remote new-origin is neither $GITHUB_REPO_REMOTE nor $GITHUB_REPO_REMOTE_GIT" 1>&2
+	echo "$0: ERROR: git remote get-url new-origin: $GIT_REMOTE_ORIGIN is neither $GITHUB_REPO_REMOTE nor $GITHUB_REPO_REMOTE_GIT" 1>&2
 	exit 31
     fi
 fi
@@ -455,7 +455,7 @@ if [[ -z $N_FLAG ]]; then
     fi
     GIT_REMOTE_ORIGIN=$(git remote get-url origin)
     if [[ -z $GIT_REMOTE_ORIGIN ]]; then
-	echo "$0: ERROR: git remote new-origin is emoty" 1>&2
+	echo "$0: ERROR: git remote new-origin is empty" 1>&2
 	exit 38
     fi
     if [[ $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE" && $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE_GIT" ]]; then
