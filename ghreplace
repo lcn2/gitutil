@@ -356,6 +356,29 @@ if [[ -z $N_FLAG ]]; then
 	echo "$0: ERROR: local src .git tree for $NAME is missing: $DIR/.git" 1>&2
 	exit 33
     fi
+
+    # move to top of source above where name is found
+    #
+    status=0
+    cd "$DIR" || status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: cd $DIR failed, exit code: $status" 1>&2
+	exit 34
+    fi
+
+    # set branch master upstream branch
+    #
+    if [[ -n $V_FLAG ]]; then
+	echo "$0: notice: git branch --set-upstream-to=origin/master"
+    fi
+    if [[ -z $N_FLAG ]]; then
+	git branch --set-upstream-to=origin/master
+	status="$?"
+	if [[ $status -ne 0 ]]; then
+	    echo "$0: ERROR: git branch --set-upstream-to=origin/master failed, exit code: $status" 1>&2
+	    exit 35
+	fi
+    fi
 fi
 
 # All Done!!! -- Jessica Noll, Age 2
