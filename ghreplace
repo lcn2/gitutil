@@ -162,10 +162,15 @@ fi
 if [[ -n $V_FLAG ]]; then
     echo "$0: notice: git remote get-url origin"
 fi
-export GIT_LOCAL_REPO_NAME="$LOCAL_GIT_TREE/$NAME"
 GIT_REMOTE_ORIGIN=$(git remote get-url origin)
-if [[ $GIT_REMOTE_ORIGIN != "$GIT_LOCAL_REPO_NAME" ]]; then
-    echo "$0: ERROR: git remote origin is not $GIT_LOCAL_REPO_NAME: $GIT_REMOTE_ORIGIN" 1>&2
+if [[ $GIT_REMOTE_ORIGIN =~ \.git$ ]]; then
+    GIT_LOCAL_REPO_PATH="$LOCAL_GIT_TREE/$NAME.git"
+else
+    GIT_LOCAL_REPO_PATH="$LOCAL_GIT_TREE/$NAME"
+fi
+export GIT_LOCAL_REPO_PATH
+if [[ $GIT_REMOTE_ORIGIN != "$GIT_LOCAL_REPO_PATH" ]]; then
+    echo "$0: ERROR: git remote origin is $GIT_REMOTE_ORIGIN != $GIT_LOCAL_REPO_PATH" 1>&2
     exit 13
 fi
 
