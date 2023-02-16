@@ -162,20 +162,41 @@ fi
 if [[ -n $V_FLAG ]]; then
     echo "$0: notice: git remote get-url origin"
 fi
-export GITHUB_REPO_REMOTE="$GITHUB_REPO_BASE/$NAME"
-export GITHUB_REPO_REMOTE_GIT="$GITHUB_REPO_REMOTE.git"
+export GIT_LOCAL_REPO_PATH="$LOCAL_GIT_TREE/$NAME"
+export GIT_LOCAL_REPO_PATH_GIT="$GIT_LOCAL_REPO_PATH.git"
 GIT_REMOTE_ORIGIN=$(git remote get-url origin)
-if [[ $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE" && $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE_GIT" ]]; then
-    echo "$0: ERROR: git remote new-origin is neither $GITHUB_REPO_REMOTE nor $GITHUB_REPO_REMOTE_GIT" 1>&2
+if [[ $GIT_REMOTE_ORIGIN != "$GIT_LOCAL_REPO_PATH" && $GIT_REMOTE_ORIGIN != "$GIT_LOCAL_REPO_PATH_GIT" ]]; then
+    echo "$0: ERROR: git remote new-origin is neither $GIT_LOCAL_REPO_PATH nor $GIT_LOCAL_REPO_PATH_GIT" 1>&2
     exit 13
 fi
 
 # verify that the local git repo exists
 #
-export LOCAL_GIT_REPO_DIR="$GIT_REMOTE_ORIGIN.git"
-if [[ ! -d $LOCAL_GIT_REPO_DIR ]]; then
-    echo "$0: ERROR: local git repo missing: $LOCAL_GIT_REPO_DIR" 1>&2
+if [[ -d $GIT_LOCAL_REPO_PATH ]]; then
+    LOCAL_GIT_REPO_DIR="$GIT_LOCAL_REPO_PATH"
+elif [[ -d $GIT_LOCAL_REPO_PATH_GIT ]]; then
+    LOCAL_GIT_REPO_DIR="$GIT_LOCAL_REPO_PATH_GIT"
+else
+    echo "$0: ERROR: local git repo directory missing: $GIT_LOCAL_REPO_PATH_GIT" 1>&2
     exit 14
+fi
+if [[ -n $V_FLAG ]]; then
+    echo "$0: notice: found local git repo directory: $LOCAL_GIT_REPO_DIR"
+fi
+
+# sanity check that local git repo is an actual git repo
+#
+if [[ -e $LOCAL_GIT_REPO_DIR/.git ]]; then
+    echo "$0: ERROR: found .git under local git repo directory: $LOCAL_GIT_REPO_DIR" 1>&2
+    exit 15
+fi
+if [[ ! -e $LOCAL_GIT_REPO_DIR/HEAD ]]; then
+    echo "$0: ERROR: missing HEAD under local git repo directory: $LOCAL_GIT_REPO_DIR" 1>&2
+    exit 16
+fi
+if [[ ! -e $LOCAL_GIT_REPO_DIR/config ]]; then
+    echo "$0: ERROR: missing config under local git repo directory: $LOCAL_GIT_REPO_DIR" 1>&2
+    exit 17
 fi
 
 # verify we are on the master branch
@@ -187,11 +208,11 @@ CURRENT_BRANCH=$(git branch --show-current)
 status="$?"
 if [[ $status -ne 0 ]]; then
     echo "$0: ERROR: git branch --show-current failed, exit code: $status" 1>&2
-    exit 15
+    exit 18
 fi
 if [[ $CURRENT_BRANCH != master ]]; then
     echo "$0: ERROR: git branch is not master: $CURRENT_BRANCH" 1>&2
-    exit 16
+    exit 19
 fi
 
 # fetch all remote branches and tags
@@ -204,7 +225,7 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: git fetch origin failed, exit code: $status" 1>&2
-	exit 17
+	exit 20
     fi
 fi
 
@@ -217,15 +238,17 @@ IS_CLEAN=$(git status --porcelain)
 status="$?"
 if [[ $status -ne 0 ]]; then
     echo "$0: ERROR: git status --porcelain failed, exit code: $status" 1>&2
-    exit 18
+    exit 21
 fi
 if [[ -n $IS_CLEAN ]]; then
     echo "$0: ERROR: local git repo is not clean: $IS_CLEAN" 1>&2
-    exit 19
+    exit 22
 fi
 
 # require that an non-empty GitHub repo exists now
 #
+export GITHUB_REPO_REMOTE="$GITHUB_REPO_BASE/$NAME"
+export GITHUB_REPO_REMOTE_GIT="$GITHUB_REPO_REMOTE.git"
 if [[ -n $V_FLAG ]]; then
     echo "$0: notice: git ls-remote $GITHUB_REPO_REMOTE_GIT 2>/dev/null"
 fi
@@ -233,11 +256,11 @@ GITHUB_LS_REMOTE=$(git ls-remote "$GITHUB_REPO_REMOTE_GIT" 2>/dev/null)
 status="$?"
 if [[ $status -ne 0 ]]; then
     echo "$0: ERROR: cannot find GitHub repo: $GITHUB_REPO_REMOTE_GIT" 1>&2
-    exit 20
+    exit 23
 fi
 if [[ -z $GITHUB_LS_REMOTE ]]; then
     echo "$0: ERROR: git ls-remote $GITHUB_REPO_REMOTE_GIT is empty" 1>&2
-    exit 21
+    exit 24
 elif [[ -n $V_FLAG ]]; then
     echo "$0: notice: GitHub is: $GITHUB_REPO_REMOTE_GIT"
 fi
@@ -248,11 +271,11 @@ status=0
 cd "$LOCAL_SRC_TREE" || status="$?"
 if [[ $status -ne 0 ]]; then
     echo "$0: ERROR: cd $LOCAL_SRC_TREE failed, exit code: $status" 1>&2
-    exit 22
+    exit 25
 fi
 if [[ ! -d $NAME ]]; then
     echo "$0: ERROR: $NAME is not a directory under $LOCAL_SRC_TREE" 1>&2
-    exit 23
+    exit 26
 fi
 
 # verify that GitHub has updated data
@@ -274,14 +297,14 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: rm -rf $LOCAL_GIT_REPO_DIR failed, exit code: $status" 1>&2
-	exit 24
+	exit 27
     fi
 
     # verify local git repo is now gone
     #
     if [[ -e $LOCAL_GIT_REPO_DIR ]]; then
 	echo "$0: ERROR: local git repo still exists: $LOCAL_GIT_REPO_DIR" 1>&2
-	exit 25
+	exit 28
     elif [[ -n $V_FLAG ]]; then
 	echo "$0: notice: local git repo removed: $LOCAL_GIT_REPO_DIR"
     fi
@@ -297,14 +320,14 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: rm -rf $DIR failed, exit code: $status" 1>&2
-	exit 26
+	exit 29
     fi
 
     # verify local git repo is now gone
     #
     if [[ -e $DIR ]]; then
 	echo "$0: ERROR: local src tree still exists: $DIR" 1>&2
-	exit 27
+	exit 30
     elif [[ -n $V_FLAG ]]; then
 	echo "$0: notice: local src tree removed: $DIR"
     fi
@@ -320,18 +343,18 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: git clone $GITHUB_REPO_REMOTE_GIT failed, exit code: $status" 1>&2
-	exit 28
+	exit 31
     fi
 
     # verify local git repo exists
     #
     if [[ ! -d $DIR ]]; then
 	echo "$0: ERROR: local src tree for $NAME is missing: $DIR" 1>&2
-	exit 29
+	exit 32
     fi
     if [[ ! -d $DIR/.git ]]; then
 	echo "$0: ERROR: local src .git tree for $NAME is missing: $DIR/.git" 1>&2
-	exit 30
+	exit 33
     fi
 fi
 
