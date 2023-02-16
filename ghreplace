@@ -162,15 +162,11 @@ fi
 if [[ -n $V_FLAG ]]; then
     echo "$0: notice: git remote get-url origin"
 fi
+export GITHUB_REPO_REMOTE="$GITHUB_REPO_BASE/$NAME"
+export GITHUB_REPO_REMOTE_GIT="$GITHUB_REPO_REMOTE.git"
 GIT_REMOTE_ORIGIN=$(git remote get-url origin)
-if [[ $GIT_REMOTE_ORIGIN =~ \.git$ ]]; then
-    GIT_LOCAL_REPO_PATH="$LOCAL_GIT_TREE/$NAME.git"
-else
-    GIT_LOCAL_REPO_PATH="$LOCAL_GIT_TREE/$NAME"
-fi
-export GIT_LOCAL_REPO_PATH
-if [[ $GIT_REMOTE_ORIGIN != "$GIT_LOCAL_REPO_PATH" ]]; then
-    echo "$0: ERROR: git remote origin is $GIT_REMOTE_ORIGIN != $GIT_LOCAL_REPO_PATH" 1>&2
+if [[ $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE" && $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE_GIT" ]]; then
+    echo "$0: ERROR: git remote new-origin is neither $GITHUB_REPO_REMOTE nor $GITHUB_REPO_REMOTE_GIT" 1>&2
     exit 13
 fi
 
@@ -230,21 +226,20 @@ fi
 
 # require that an non-empty GitHub repo exists now
 #
-export GITHUB_REPO_REMOTE="$GITHUB_REPO_BASE/$NAME.git"
 if [[ -n $V_FLAG ]]; then
-    echo "$0: notice: git ls-remote $GITHUB_REPO_REMOTE 2>/dev/null"
+    echo "$0: notice: git ls-remote $GITHUB_REPO_REMOTE_GIT 2>/dev/null"
 fi
-GITHUB_LS_REMOTE=$(git ls-remote "$GITHUB_REPO_REMOTE" 2>/dev/null)
+GITHUB_LS_REMOTE=$(git ls-remote "$GITHUB_REPO_REMOTE_GIT" 2>/dev/null)
 status="$?"
 if [[ $status -ne 0 ]]; then
-    echo "$0: ERROR: cannot find GitHub repo: $GITHUB_REPO_REMOTE" 1>&2
+    echo "$0: ERROR: cannot find GitHub repo: $GITHUB_REPO_REMOTE_GIT" 1>&2
     exit 20
 fi
 if [[ -z $GITHUB_LS_REMOTE ]]; then
-    echo "$0: ERROR: git ls-remote $GITHUB_REPO_REMOTE is empty" 1>&2
+    echo "$0: ERROR: git ls-remote $GITHUB_REPO_REMOTE_GIT is empty" 1>&2
     exit 21
 elif [[ -n $V_FLAG ]]; then
-    echo "$0: notice: GitHub is: $GITHUB_REPO_REMOTE"
+    echo "$0: notice: GitHub is: $GITHUB_REPO_REMOTE_GIT"
 fi
 
 # move to top of source above where name is found
@@ -318,13 +313,13 @@ fi
 # clone the GitHub repo
 #
 if [[ -n $V_FLAG ]]; then
-    echo "$0: notice: git clone $GITHUB_REPO_REMOTE"
+    echo "$0: notice: git clone $GITHUB_REPO_REMOTE_GIT"
 fi
 if [[ -z $N_FLAG ]]; then
-    git clone "$GITHUB_REPO_REMOTE"
+    git clone "$GITHUB_REPO_REMOTE_GIT"
     status="$?"
     if [[ $status -ne 0 ]]; then
-	echo "$0: ERROR: git clone $GITHUB_REPO_REMOTE failed, exit code: $status" 1>&2
+	echo "$0: ERROR: git clone $GITHUB_REPO_REMOTE_GIT failed, exit code: $status" 1>&2
 	exit 28
     fi
 
