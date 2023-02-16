@@ -281,6 +281,18 @@ if [[ $HASHBANG != "#!/usr/bin/env make" ]]; then
     exit 25
 fi
 
+# verify we have SHELL= bash line in Makefile
+#
+SHELL_LINE=$(grep -E '^SHELL[	 =]' "$MAKEFILE")
+if [[ -z $SHELL_LINE ]]; then
+    echo "$0: ERROR: missing from $MAKEFILE: SHELL= bash" 1>&2
+    exit 26
+fi
+if [[ $SHELL_LINE != 'SHELL= bash' ]]; then
+    echo "$0: ERROR: SHELL line: $SHELL_LINE in $MAKEFILE is not: SHELL= bash" 1>&2
+    exit 27
+fi
+
 # see if a GitHub repo exists
 #
 export GITHUB_REPO_REMOTE="$GITHUB_REPO_BASE/$NAME"
@@ -305,7 +317,7 @@ fi
 SUMMARY=$(grep -E  '^# [^-][^-]* -' "$MAKEFILE" | head -1)
 if [[ -z $SUMMARY ]]; then
     echo "$0: ERROR: did not find summary comment line in Makefile: $MAKEFILE" 1>&2
-    exit 26
+    exit 28
 fi
 if [[ -n $V_FLAG ]]; then
     echo "$0: notice: summary comment line: $SUMMARY"
@@ -342,11 +354,11 @@ GITHUB_LS_REMOTE=$(git ls-remote "$GITHUB_REPO_REMOTE_GIT" 2>/dev/null)
 status="$?"
 if [[ $status -ne 0 ]]; then
     echo "$0: ERROR: cannot find GitHub repo: $GITHUB_REPO_REMOTE_GIT" 1>&2
-    exit 27
+    exit 29
 fi
 if [[ -n $GITHUB_LS_REMOTE ]]; then
     echo "$0: ERROR: git ls-remote $GITHUB_REPO_REMOTE_GIT was NOT empty" 1>&2
-    exit 28
+    exit 30
 elif [[ -n $V_FLAG ]]; then
     echo "$0: notice: GitHub is: $GITHUB_REPO_REMOTE_GIT"
 fi
@@ -361,7 +373,7 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: git remote add new-origin $GITHUB_REPO_REMOTE_GIT failed, exit code: $status" 1>&2
-	exit 29
+	exit 31
     fi
 
     # verify that the new remote origin exists and has the correct URL
@@ -372,11 +384,11 @@ if [[ -z $N_FLAG ]]; then
     GIT_REMOTE_ORIGIN=$(git remote get-url new-origin 2>/dev/null)
     if [[ -z $GIT_REMOTE_ORIGIN ]]; then
 	echo "$0: ERROR: git remote new-origin is empty" 1>&2
-	exit 30
+	exit 32
     fi
     if [[ $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE" && $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE_GIT" ]]; then
 	echo "$0: ERROR: git remote get-url new-origin: $GIT_REMOTE_ORIGIN is neither $GITHUB_REPO_REMOTE nor $GITHUB_REPO_REMOTE_GIT" 1>&2
-	exit 31
+	exit 33
     fi
 fi
 
@@ -390,7 +402,7 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: git push --all new-origin failed, exit code: $status" 1>&2
-	exit 32
+	exit 34
     fi
 fi
 
@@ -404,7 +416,7 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: git push --tags new-origin failed, exit code: $status" 1>&2
-	exit 33
+	exit 35
     fi
 fi
 
@@ -418,7 +430,7 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: git remote rm origin failed, exit code: $status" 1>&2
-	exit 34
+	exit 36
     fi
 fi
 
@@ -432,7 +444,7 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: git remote rename new-origin origin failed, exit code: $status" 1>&2
-	exit 35
+	exit 37
     fi
 
     # verify that the origin is now on GitHub
@@ -444,11 +456,11 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: git remote failed, exit code: $status" 1>&2
-	exit 36
+	exit 38
     fi
     if [[ $GIT_REMOTE != "origin" ]]; then
 	echo "$0: ERROR: git remote is not origin: $GIT_REMOTE" 1>&2
-	exit 37
+	exit 39
     fi
     if [[ -n $V_FLAG ]]; then
 	echo "$0: notice: git remote get-url origin"
@@ -456,11 +468,11 @@ if [[ -z $N_FLAG ]]; then
     GIT_REMOTE_ORIGIN=$(git remote get-url origin)
     if [[ -z $GIT_REMOTE_ORIGIN ]]; then
 	echo "$0: ERROR: git remote new-origin is empty" 1>&2
-	exit 38
+	exit 40
     fi
     if [[ $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE" && $GIT_REMOTE_ORIGIN != "$GITHUB_REPO_REMOTE_GIT" ]]; then
 	echo "$0: ERROR: git remote new-origin is neither $GITHUB_REPO_REMOTE nor $GITHUB_REPO_REMOTE_GIT" 1>&2
-	exit 39
+	exit 41
     fi
 
     # verify we are on the master branch
@@ -472,11 +484,11 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: git branch --show-current failed, exit code: $status" 1>&2
-	exit 40
+	exit 42
     fi
     if [[ $CURRENT_BRANCH != master ]]; then
 	echo "$0: ERROR: git branch is not master: $CURRENT_BRANCH" 1>&2
-	exit 41
+	exit 43
     fi
 
     # set branch master upstream branch
@@ -489,7 +501,7 @@ if [[ -z $N_FLAG ]]; then
 	status="$?"
 	if [[ $status -ne 0 ]]; then
 	    echo "$0: ERROR: git branch --set-upstream-to=origin/master failed, exit code: $status" 1>&2
-	    exit 42
+	    exit 44
 	fi
     fi
 fi
@@ -513,14 +525,14 @@ if [[ -z $N_FLAG ]]; then
     status="$?"
     if [[ $status -ne 0 ]]; then
 	echo "$0: ERROR: rm -rf $LOCAL_GIT_REPO_DIR failed, exit code: $status" 1>&2
-	exit 43
+	exit 45
     fi
 
     # verify local git repo is now gone
     #
     if [[ -e $LOCAL_GIT_REPO_DIR ]]; then
 	echo "$0: ERROR: local git repo still exists: $LOCAL_GIT_REPO_DIR" 1>&2
-	exit 44
+	exit 46
     elif [[ -n $V_FLAG ]]; then
 	echo "$0: notice: local git repo removed: $LOCAL_GIT_REPO_DIR"
     fi
