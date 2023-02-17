@@ -32,12 +32,7 @@
 #
 export GITHUB_USER="lcn2"
 export LOCAL_SRC_TREE="/usr/local/src/bin"
-if [[ -d /usr/global/git ]]; then
-    LOCAL_GIT_TREE="/usr/global/git"
-else
-    LOCAL_GIT_TREE="/usr/local/git"
-fi
-export LOCAL_GIT_TREE
+export LOCAL_GIT_TREE="/usr/local/git"
 export GITHUB_REPO_BASE="git@github.com:$GITHUB_USER"
 export GITHUB_USER_URL="https://github.com/$GITHUB_USER"
 export N_FLAG=

@@ -25,7 +25,7 @@
 
 SHELL= bash
 BINMODE= 0555
-DESTBIN= /usr/global/bin
+DESTBIN= /usr/local/bin
 ALTDESTBIN= /usr/local/bin
 INSTALL= install
 

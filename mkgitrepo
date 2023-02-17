@@ -28,10 +28,7 @@
 
 # setup
 #
-export LOC_REPO_DIR="/usr/global/git"
-if [[ ! -d "$LOC_REPO_DIR" ]]; then
-    LOC_REPO_DIR="/usr/local/git"
-fi
+export LOC_REPO_DIR="/usr/local/git"
 export USAGE="usage: $0 [-h] [-r locrepo] [-n] [-v] dir
 
 	-h          print this message and exit

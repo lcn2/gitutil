@@ -28,10 +28,7 @@
 
 # setup
 #
-export LOC_REPO_TREE="/usr/global/git"
-if [[ ! -d "$LOC_REPO_TREE" ]]; then
-    LOC_REPO_TREE="/usr/local/git"
-fi
+export LOC_REPO_TREE="/usr/local/git"
 export USAGE="usage: $0 [-h] [-n] [-v] [-r repotree] repo_name parent_dir
 
 	-h            print this message and exit
