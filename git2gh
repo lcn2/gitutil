@@ -307,9 +307,9 @@ export GITHUB_REPO_EXISTS
 # look for summary comment line in Makefile
 #
 if [[ -n $V_FLAG ]]; then
-    echo "$0: notice: grep -E  '^# [^-][^-]* -' $MAKEFILE | head -1"
+    echo "$0: notice: grep -E  '^# ..* - ' $MAKEFILE | head -1"
 fi
-SUMMARY=$(grep -E  '^# [^-][^-]* -' "$MAKEFILE" | head -1)
+SUMMARY=$(grep -E  '^# ..* - ' "$MAKEFILE" | head -1)
 if [[ -z $SUMMARY ]]; then
     echo "$0: ERROR: did not find summary comment line in Makefile: $MAKEFILE" 1>&2
     exit 28
