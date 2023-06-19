@@ -330,7 +330,7 @@ if [[ -z $GITHUB_REPO_EXISTS ]]; then
     echo
     echo "$0: notice: Enter data based on: $SUMMARY"
     echo
-    echo "$0: notice: Select (*) Private"
+    echo "$0: notice: Select (*) Private if needed, else keep Public"
     echo
     echo "$0: notice: click ((Create repository)) at the bottom"
     echo
