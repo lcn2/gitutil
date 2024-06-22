@@ -322,8 +322,8 @@ fi
 #
 if [[ -z $GITHUB_REPO_EXISTS ]]; then
     echo "$0: notice: GitHub repo does not yet exist"
-    echo "$0: notice: Create a private GitHub empty via: $GITHUB_USER_URL"
-    echo "$0: notice: Press the + in the upper right corner and select: 'New repository'"
+    echo "$0: notice: Create a private GitHub empty via: $GITHUB_USER_URL?tab=repositories"
+    echo "$0: notice: Click the green ((New)) button"
     echo
     echo "$0: notice: Enter Repository name"
     echo "$0: notice: Enter Description"
