@@ -1,8 +1,8 @@
-#!/bin/bash -
+#!/usr/bin/env bash
 #
 # rcs2git - convert an RCS directory into directory under git control
 #
-# Copyright (c) 2016,2021 by Landon Curt Noll.  All Rights Reserved.
+# Copyright (c) 2016,2021,2025 by Landon Curt Noll.  All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and
 # its documentation for any purpose and without fee is hereby granted,
@@ -28,23 +28,8 @@
 
 # setup
 #
+export VERSION="1.0.0 2025-03-17"
 export LOC_REPO_DIR="/usr/local/git"
-export USAGE="usage: $0 [-h] [-a] [-b] [-r locrepo] [-c] [-m commit] [-x tool] [-k] [-n] [-v] dir
-
-	-h          print this message and exit
-
-	-a	    do not commit (def: add all and commit)
-	-b	    do not add, do not commit (def: add all and commit)
-	-r locrepo  directory of the local git repo (def: $LOC_REPO_DIR)
-	-c	    do not clone to locrepo (def: bare clone to locrepo)
-	-m commit   use commit message when committing (def: 'from RCS to git via rcs-fast-export')
-	-x tool	    path to the rcs-fast-export tool (def: /usr/local/bin/rcs-fast-export)
-	-k	    keep RCS directory (def: remove RCS after sucessful git conversion)
-
-        -n          do not create anything
-	-v          be verbose
-
-	dir	    directory to place under git control"
 export NO_COMMIT=""
 export NO_ADD=""
 export NO_CLONE=""
@@ -53,10 +38,32 @@ export RCS_FAST_EXPORT="/usr/local/bin/rcs-fast-export"
 export KEEP=""
 export VERBOSE=""
 export NO_OP=""
+NAME=$(basename "$0")
+export NAME
+#
+export USAGE="usage: $NAME [-h] [-v] [-V] [-n] [-a] [-b] [-r locrepo] [-c] [-m commit] [-x tool] [-k] dir
+
+    -h          print this message and exit
+    -v          be verbose
+    -V          print version string and exit
+
+    -n          do not create anything
+
+    -a          do not commit (def: add all and commit)
+    -b          do not add, do not commit (def: add all and commit)
+    -r locrepo  directory of the local git repo (def: $LOC_REPO_DIR)
+    -c          do not clone to locrepo (def: bare clone to locrepo)
+    -m commit   use commit message when committing (def: 'from RCS to git via rcs-fast-export')
+    -x tool     path to the rcs-fast-export tool (def: /usr/local/bin/rcs-fast-export)
+    -k          keep RCS directory (def: remove RCS after sucessful git conversion)
+
+    dir         directory to place under git control
+
+$NAME version: $VERSION"
 
 # parse args
 #
-while getopts :habr:cm:x:knv flag; do
+while getopts :habr:cm:x:knvV flag; do
     case "$flag" in
     h) echo "$USAGE" 1>&2;
        exit 0
@@ -80,10 +87,24 @@ while getopts :habr:cm:x:knv flag; do
        ;;
     v) VERBOSE="-v"
        ;;
-    ?) echo "$0: FATAL: unknown or invalid -flag" 1>&2 ;
-       echo "$USAGE" 1>&2 ;
-       exit 1
+    V) echo "$VERSION"
+	exit 2
        ;;
+    \?) echo "$0: ERROR: invalid option: -$OPTARG" 1>&2
+        echo 1>&2
+        echo "$USAGE" 1>&2
+        exit 3
+        ;;
+    :) echo "$0: ERROR: option -$OPTARG requires an argument" 1>&2
+        echo 1>&2
+        echo "$USAGE" 1>&2
+        exit 3
+        ;;
+    *) echo "$0: ERROR: unexpected value from getopts: $flag" 1>&2
+        echo 1>&2
+        echo "$USAGE" 1>&2
+        exit 3
+        ;;
     esac
 done
 shift $(( OPTIND - 1 ));
@@ -98,23 +119,23 @@ export DIR="$1"
 #
 if [[ ! -e "$DIR" ]]; then
     echo "$0: FATAL: directory does not exist: $DIR" 1>&2
-    exit 3
+    exit 4
 fi
 if [[ ! -d "$DIR" ]]; then
     echo "$0: FATAL: not a directory: $DIR" 1>&2
-    exit 4
+    exit 5
 fi
 if [[ ! -e "$LOC_REPO_DIR" ]]; then
     echo "$0: FATAL: repo directory does not exist: $LOC_REPO_DIR" 1>&2
-    exit 5
+    exit 6
 fi
 if [[ ! -d "$LOC_REPO_DIR" ]]; then
     echo "$0: FATAL: repo is not a directory: $LOC_REPO_DIR" 1>&2
-    exit 6
+    exit 7
 fi
 if [[ ! -x "$RCS_FAST_EXPORT" ]]; then
     echo "$0: FATAL: missing executable rcs-fast-report tool: $RCS_FAST_EXPORT" 1>&2
-    exit 7
+    exit 8
 fi
 
 # determine if readlink --canonicalize-existing works
@@ -135,11 +156,11 @@ if [[ -n $HAS_CANONICALIZE_EXISTING ]]; then
     status="$?"
     if [[ "$status" -ne 0 ]]; then
 	echo "$0: FATAL: cannot canonicalize $DIR, error code: $status" 1>&2
-	exit 8
+	exit 9
     fi
     if [[ -z "$CANON_DIR" ]]; then
 	echo "$0: FATAL: DIR canonicalized $DIR to empty string" 1>&2
-	exit 9
+	exit 10
     fi
 else
     CANON_DIR=$(perl -MCwd -e 'print Cwd::realpath($ARGV[0]), "\n"' "$DIR")
@@ -148,37 +169,42 @@ if [[ -n "$VERBOSE" ]]; then
     echo "$0: Notice: CANON_DIR: $CANON_DIR" 1>&2
 fi
 
-# move to the directory
+# move to the parent directory
 #
 if [[ -n "$VERBOSE" ]]; then
    echo "$0: Notice: cd $CANON_DIR" 1>&2
 fi
-cd "$CANON_DIR"
-status="$?"
-if [[ "$status" -ne 0 ]]; then
-    echo "$0: FATAL: cannot cd $CANON_DIR, error code: $status" 1>&2
-    exit 10
+export CD_FAILED=""
+cd "$CANON_DIR" || CD_FAILED="true"
+if [[ -n $CD_FAILED ]]; then
+    echo "$0: ERROR: cd $CANON_DIR failed" 1>&2
+    exit 11
+fi
+if [[ -n $VERBOSE ]]; then
+    echo "$0: debug[3]: now in directory: $(/bin/pwd)" 1>&2
 fi
 
 # reject if there is a similarly named git repo under $LOC_REPO_DIR
 #
-export NAME=$(basename "$CANON_DIR")
+REPO_NAME=$(basename "$CANON_DIR")
+export REPO_NAME
 if [[ -n "$VERBOSE" ]]; then
-    echo "$0: Notice: NAME: $NAME" 1>&2
+    echo "$0: Notice: REPO_NAME: $REPO_NAME" 1>&2
 fi
-if [[ -e "$LOC_REPO_DIR/$NAME" ]]; then
-    echo "$0: FATAL: similarly named git repo found under: $LOC_REPO_DIR/$NAME" 1>&2
-    exit 11
-fi
-if [[ -e "$LOC_REPO_DIR/$NAME.git" ]]; then
-    echo "$0: FATAL: similarly named git repo found under: $LOC_REPO_DIR/$NAME.git" 1>&2
+if [[ -e "$LOC_REPO_DIR/$REPO_NAME" ]]; then
+    echo "$0: FATAL: similarly named git repo found under: $LOC_REPO_DIR/$REPO_NAME" 1>&2
     exit 12
+fi
+if [[ -e "$LOC_REPO_DIR/$REPO_NAME.git" ]]; then
+    echo "$0: FATAL: similarly named git repo found under: $LOC_REPO_DIR/$REPO_NAME.git" 1>&2
+    exit 13
 fi
 
 # reject if already under git control or a sub-directory is under git control
 #
 if git rev-parse --is-inside-work >/dev/null 2>&1; then
-    export GIT_DIR_PATH=$(git rev-parse --git-dir 2>/dev/null)
+    GIT_DIR_PATH=$(git rev-parse --git-dir 2>/dev/null)
+    export GIT_DIR_PATH
     if [[ -z "$GIT_DIR_PATH" ]]; then
 	echo "$0: FATAL: $DIR is under git control, but .git is unknown" 1>&2
     else
@@ -193,7 +219,7 @@ if git rev-parse --is-inside-work >/dev/null 2>&1; then
 	    echo "$0: FATAL: $DIR is under git control: $NEW_GIT_DIR_PATH" 1>&2
 	fi
     fi
-    exit 13
+    exit 14
 fi
 
 # reject if sub-directory is under git control
@@ -210,7 +236,7 @@ if [[ -n "$SUB_GIT" ]]; then
     else
 	echo "$0: FATAL: a sub-directory of $DIR appears to be under git control: $NEW_SUB_GIT" 1>&2
     fi
-    exit 14
+    exit 15
 fi
 if [[ -n "$VERBOSE" ]]; then
     echo "$0: Notice: $DIR is not under git control" 1>&2
@@ -220,7 +246,7 @@ fi
 #
 if [[ ! -d RCS ]]; then
     echo "$0: FATAL: $DIR is missing an RCS sub-directory" 1>&2
-    exit 15
+    exit 16
 fi
 
 # put the directory under git
@@ -233,7 +259,7 @@ if [[ -z "$NO_OP" ]]; then
     status="$?"
     if [[ "$status" -ne 0 ]]; then
 	echo "$0: FATAL: git init error: $status" 1>&2
-	exit 16
+	exit 17
     fi
 fi
 
@@ -247,7 +273,7 @@ if [[ -z "$NO_OP" ]]; then
     status="$?"
     if [[ "$status" -ne 0 ]]; then
 	echo "$0: FATAL: rcs-fast-export error: $status" 1>&2
-	exit 17
+	exit 18
     fi
 fi
 
@@ -263,14 +289,14 @@ if [[ -z "$NO_ADD" ]]; then
 	    status="$?"
 	    if [[ "$status" -ne 0 ]]; then
 		echo "$0: FATAL: git add error: $status" 1>&2
-		exit 18
+		exit 19
 	    fi
 	else
 	    git add .
 	    status="$?"
 	    if [[ "$status" -ne 0 ]]; then
 		echo "$0: FATAL: git add error: $status" 1>&2
-		exit 19
+		exit 20
 	    fi
 	fi
     fi
@@ -292,14 +318,14 @@ if [[ -z "$NO_COMMIT" ]]; then
 	    status="$?"
 	    if [[ "$status" -ne 0 ]]; then
 		echo "$0: FATAL: git commit error: $status" 1>&2
-		exit 20
+		exit 21
 	    fi
 	else
 	    git commit -m "$COMMIT_MSG"
 	    status="$?"
 	    if [[ "$status" -ne 0 ]]; then
 		echo "$0: FATAL: git commit error: $status" 1>&2
-		exit 21
+		exit 22
 	    fi
 	fi
     fi
@@ -309,7 +335,7 @@ else
     fi
 fi
 
-# unless -c, clone a bare repo under $LOC_REPO_DIR/$NAME.git
+# unless -c, clone a bare repo under $LOC_REPO_DIR/$REPO_NAME.git
 #
 if [[ -z "$NO_CLONE" ]]; then
 
@@ -318,11 +344,14 @@ if [[ -z "$NO_CLONE" ]]; then
     if [[ -n "$VERBOSE" ]]; then
        echo "$0: Notice: cd $LOC_REPO_DIR" 1>&2
     fi
-    cd "$LOC_REPO_DIR"
-    status="$?"
-    if [[ "$status" -ne 0 ]]; then
-	echo "$0: FATAL: cannot cd $LOC_REPO_DIR, error code: $status" 1>&2
-	exit 22
+    export CD_FAILED=""
+    cd "$LOC_REPO_DIR" || CD_FAILED="true"
+    if [[ -n $CD_FAILED ]]; then
+	echo "$0: ERROR: cd $LOC_REPO_DIR failed" 1>&2
+	exit 23
+    fi
+    if [[ -n $VERBOSE ]]; then
+	echo "$0: debug[3]: now in directory: $(/bin/pwd)" 1>&2
     fi
 
     # determine if $LOC_REPO_DIR is same filesystem as $CANON_DIR
@@ -350,14 +379,14 @@ if [[ -z "$NO_CLONE" ]]; then
 	    status="$?"
 	    if [[ "$status" -ne 0 ]]; then
 		echo "$0: FATAL: git clone error: $status" 1>&2
-		exit 23
+		exit 24
 	    fi
 	else
 	    git clone --bare --local "$CLONE_ARG" "$CANON_DIR"
 	    status="$?"
 	    if [[ "$status" -ne 0 ]]; then
 		echo "$0: FATAL: git clone error: $status" 1>&2
-		exit 24
+		exit 25
 	    fi
 	fi
     fi
@@ -367,28 +396,31 @@ if [[ -z "$NO_CLONE" ]]; then
     if [[ -n "$VERBOSE" ]]; then
        echo "$0: Notice: cd $CANON_DIR" 1>&2
     fi
-    cd "$CANON_DIR"
-    status="$?"
-    if [[ "$status" -ne 0 ]]; then
-	echo "$0: FATAL: cannot cd $CANON_DIR, error code: $status" 1>&2
-	exit 25
+    export CD_FAILED=""
+    cd "$CANON_DIR" || CD_FAILED="true"
+    if [[ -n $CD_FAILED ]]; then
+	echo "$0: ERROR: cd $CANON_DIR failed" 1>&2
+	exit 26
+    fi
+    if [[ -n $VERBOSE ]]; then
+	echo "$0: debug[3]: now in directory: $(/bin/pwd)" 1>&2
     fi
 
     # set git remote
     #
     if [[ -n "$VERBOSE" ]]; then
-	echo "$0: Notice: git remote -v add origin $LOC_REPO_DIR/$NAME" 1>&2
+	echo "$0: Notice: git remote -v add origin $LOC_REPO_DIR/$REPO_NAME" 1>&2
     fi
     if [[ -z "$NO_OP" ]]; then
 	if [[ -n "$VERBOSE" ]]; then
-	    git remote -v add origin "$LOC_REPO_DIR/$NAME"
+	    git remote -v add origin "$LOC_REPO_DIR/$REPO_NAME"
 	else
-	    git remote add origin "$LOC_REPO_DIR/$NAME"
+	    git remote add origin "$LOC_REPO_DIR/$REPO_NAME"
 	fi
 	status="$?"
 	if [[ "$status" -ne 0 ]]; then
 	    echo "$0: FATAL: git remote error: $status" 1>&2
-	    exit 26
+	    exit 27
 	fi
     fi
 
@@ -406,7 +438,7 @@ if [[ -z "$NO_CLONE" ]]; then
 	status="$?"
 	if [[ "$status" -ne 0 ]]; then
 	    echo "$0: FATAL: git fetch error: $status" 1>&2
-	    exit 27
+	    exit 28
 	fi
     fi
 
@@ -418,14 +450,14 @@ if [[ -z "$NO_CLONE" ]]; then
 	status="$?"
 	if [[ "$status" -ne 0 ]]; then
 	    echo "$0: FATAL: git remote error: $status" 1>&2
-	    exit 28
+	    exit 29
 	fi
     fi
 else
     if [[ -n "$VERBOSE" ]]; then
 	echo "$0: Notice: cd $CANON_DIR skipped due to -c" 1>&2
 	echo "$0: Notice: skipped due to -c: git clone --bare --local $CANON_DIR" 1>&2
-	echo "$0: Notice: skipped due to -c: git remote add origin $LOC_REPO_DIR/$NAME" 1>&2
+	echo "$0: Notice: skipped due to -c: git remote add origin $LOC_REPO_DIR/$REPO_NAME" 1>&2
 	echo "$0: Notice: skipped due to -c: git fetch" 1>&2
 	echo "$0: Notice: skipped due to -c: git remote -v" 1>&2
     fi
@@ -442,11 +474,11 @@ if [[ -z "$KEEP" ]]; then
 	status="$?"
 	if [[ "$status" -ne 0 ]]; then
 	    echo "$0: FATAL: rm -rf RCS errir: $status" 1>&2
-	    exit 29
+	    exit 30
 	fi
 	if [[ -e RCS ]]; then
 	    echo "$0: FATAL: RCS sub-directory still exists: $status" 1>&2
-	    exit 30
+	    exit 31
 	fi
     fi
 else

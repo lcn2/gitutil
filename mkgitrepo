@@ -1,8 +1,8 @@
-#!/bin/bash -
+#!/usr/bin/env bash
 #
 # mkgitrepo - make remote bare repo on localhost from from a dir under git
 #
-# Copyright (c) 2016,2021 by Landon Curt Noll.  All Rights Reserved.
+# Copyright (c) 2016,2021,2025 by Landon Curt Noll.  All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and
 # its documentation for any purpose and without fee is hereby granted,
@@ -22,29 +22,40 @@
 # OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 #
-# chongo (Landon Curt Noll, http://www.isthe.com/chongo/index.html) /\oo/\
+# chongo (Landon Curt Noll) /\oo/\
 #
-# Share and enjoy! :-)
+# http://www.isthe.com/chongo/index.html
+# https://github.com/lcn2
+#
+# Share and enjoy!
+
 
 # setup
 #
+export VERSION="1.0.0 2025-03-17"
 export LOC_REPO_DIR="/usr/local/git"
-export USAGE="usage: $0 [-h] [-r locrepo] [-n] [-v] dir
-
-	-h          print this message and exit
-
-	-r locrepo  directory of the local git repo (def: $LOC_REPO_DIR)
-
-        -n          do not create anything
-	-v          be verbose
-
-	dir	    directory that bare repo under $LOC_REPO_DIR is cloned from"
 export VERBOSE=""
 export NO_OP=""
+NAME=$(basename "$0")
+export NAME
+#
+export USAGE="usage: $NAME [-h] [-v] [-V] [-n] [-r locrepo] dir
+
+    -h          print this message and exit
+    -v          be verbose
+    -V          print version string and exit
+
+    -n          do not create anything
+
+    -r locrepo  directory of the local git repo (def: $LOC_REPO_DIR)
+
+    dir	    directory that bare repo under $LOC_REPO_DIR is cloned from
+
+$NAME version: $VERSION"
 
 # parse args
 #
-while getopts :hr:nv flag; do
+while getopts :hr:nvV flag; do
     case "$flag" in
     h) echo "$USAGE" 1>&2;
        exit 0
@@ -55,10 +66,24 @@ while getopts :hr:nv flag; do
        ;;
     v) VERBOSE="-v"
        ;;
-    ?) echo "$0: FATAL: unknown or invalid -flag" 1>&2 ;
-       echo "$USAGE" 1>&2 ;
-       exit 1
+    V) echo "$VERSION"
+	exit 2
        ;;
+    \?) echo "$0: ERROR: invalid option: -$OPTARG" 1>&2
+        echo 1>&2
+        echo "$USAGE" 1>&2
+        exit 3
+        ;;
+    :) echo "$0: ERROR: option -$OPTARG requires an argument" 1>&2
+        echo 1>&2
+        echo "$USAGE" 1>&2
+        exit 3
+        ;;
+    *) echo "$0: ERROR: unexpected value from getopts: $flag" 1>&2
+        echo 1>&2
+        echo "$USAGE" 1>&2
+        exit 3
+        ;;
     esac
 done
 shift $(( OPTIND - 1 ));
@@ -73,19 +98,19 @@ export DIR="$1"
 #
 if [[ ! -e "$DIR" ]]; then
     echo "$0: FATAL: directory does not exist: $DIR" 1>&2
-    exit 3
+    exit 4
 fi
 if [[ ! -d "$DIR" ]]; then
     echo "$0: FATAL: not a directory: $DIR" 1>&2
-    exit 4
+    exit 5
 fi
 if [[ ! -e "$LOC_REPO_DIR" ]]; then
     echo "$0: FATAL: repo directory does not exist: $LOC_REPO_DIR" 1>&2
-    exit 5
+    exit 6
 fi
 if [[ ! -d "$LOC_REPO_DIR" ]]; then
     echo "$0: FATAL: repo is not a directory: $LOC_REPO_DIR" 1>&2
-    exit 6
+    exit 7
 fi
 
 # determine if readlink --canonicalize-existing works
@@ -106,11 +131,11 @@ if [[ -n $HAS_CANONICALIZE_EXISTING ]]; then
     status="$?"
     if [[ "$status" -ne 0 ]]; then
 	echo "$0: FATAL: cannot canonicalize $DIR, error code: $status" 1>&2
-	exit 7
+	exit 8
     fi
     if [[ -z "$CANON_DIR" ]]; then
 	echo "$0: FATAL: DIR canonicalized $DIR to empty string" 1>&2
-	exit 8
+	exit 9
     fi
 else
     CANON_DIR=$(perl -MCwd -e 'print Cwd::realpath($ARGV[0]), "\n"' "$DIR")
@@ -119,31 +144,35 @@ if [[ -n "$VERBOSE" ]]; then
     echo "$0: Notice: CANON_DIR: $CANON_DIR" 1>&2
 fi
 
-# move to the directory
+# move to the parent directory
 #
 if [[ -n "$VERBOSE" ]]; then
    echo "$0: Notice: cd $CANON_DIR" 1>&2
 fi
-cd "$CANON_DIR"
-status="$?"
-if [[ "$status" -ne 0 ]]; then
-    echo "$0: FATAL: cannot cd $CANON_DIR, error code: $status" 1>&2
-    exit 9
+export CD_FAILED=""
+cd "$CANON_DIR" || CD_FAILED="true"
+if [[ -n $CD_FAILED ]]; then
+    echo "$0: ERROR: cd $CANON_DIR failed" 1>&2
+    exit 10
+fi
+if [[ -n $VERBOSE ]]; then
+    echo "$0: debug[3]: now in directory: $(/bin/pwd)" 1>&2
 fi
 
 # reject if there is a similarly named git repo under $LOC_REPO_DIR
 #
-export NAME=$(basename "$CANON_DIR")
+REPO_NAME=$(basename "$CANON_DIR")
+export REPO_NAME
 if [[ -n "$VERBOSE" ]]; then
-    echo "$0: Notice: NAME: $NAME" 1>&2
+    echo "$0: Notice: REPO_NAME: $REPO_NAME" 1>&2
 fi
-if [[ -e "$LOC_REPO_DIR/$NAME" ]]; then
-    echo "$0: FATAL: similarly named git repo found under: $LOC_REPO_DIR/$NAME" 1>&2
-    exit 10
-fi
-if [[ -e "$LOC_REPO_DIR/$NAME.git" ]]; then
-    echo "$0: FATAL: similarly named git repo found under: $LOC_REPO_DIR/$NAME.git" 1>&2
+if [[ -e "$LOC_REPO_DIR/$REPO_NAME" ]]; then
+    echo "$0: FATAL: similarly named git repo found under: $LOC_REPO_DIR/$REPO_NAME" 1>&2
     exit 11
+fi
+if [[ -e "$LOC_REPO_DIR/$REPO_NAME.git" ]]; then
+    echo "$0: FATAL: similarly named git repo found under: $LOC_REPO_DIR/$REPO_NAME.git" 1>&2
+    exit 12
 fi
 
 # reject if not under git control or a sub-directory is under git control
@@ -153,18 +182,19 @@ if ! git rev-parse --is-inside-work >/dev/null 2>&1; then
     exit 12
 fi
 
-# clone a bare repo under $LOC_REPO_DIR/$NAME.git
-#
-# cd to $LOC_REPO_DIR
+# move to the bare repo under $LOC_REPO_DIR/$REPO_NAME.git
 #
 if [[ -n "$VERBOSE" ]]; then
    echo "$0: Notice: cd $LOC_REPO_DIR" 1>&2
 fi
-cd "$LOC_REPO_DIR"
-status="$?"
-if [[ "$status" -ne 0 ]]; then
-    echo "$0: FATAL: cannot cd $LOC_REPO_DIR, error code: $status" 1>&2
-    exit 13
+export CD_FAILED=""
+cd "$LOC_REPO_DIR" || CD_FAILED="true"
+if [[ -n $CD_FAILED ]]; then
+    echo "$0: ERROR: cd $LOC_REPO_DIR failed" 1>&2
+    exit 8
+fi
+if [[ -n $VERBOSE ]]; then
+    echo "$0: debug[3]: now in directory: $(/bin/pwd)" 1>&2
 fi
 
 # determine if $LOC_REPO_DIR is same filesystem as $CANON_DIR
@@ -192,28 +222,31 @@ if [[ -z "$NO_OP" ]]; then
 	status="$?"
 	if [[ "$status" -ne 0 ]]; then
 	    echo "$0: FATAL: git clone error: $status" 1>&2
-	    exit 14
+	    exit 13
 	fi
     else
 	git clone --bare --local "$CLONE_ARG" "$CANON_DIR"
 	status="$?"
 	if [[ "$status" -ne 0 ]]; then
 	    echo "$0: FATAL: git clone error: $status" 1>&2
-	    exit 15
+	    exit 14
 	fi
     fi
 fi
 
-# cd back to the directory
+# move back to the parent directory
 #
 if [[ -n "$VERBOSE" ]]; then
    echo "$0: Notice: cd $CANON_DIR" 1>&2
 fi
-cd "$CANON_DIR"
-status="$?"
-if [[ "$status" -ne 0 ]]; then
-    echo "$0: FATAL: cannot cd $CANON_DIR, error code: $status" 1>&2
-    exit 16
+export CD_FAILED=""
+cd "$CANON_DIR" || CD_FAILED="true"
+if [[ -n $CD_FAILED ]]; then
+    echo "$0: ERROR: cd $CANON_DIR failed" 1>&2
+    exit 15
+fi
+if [[ -n $VERBOSE ]]; then
+    echo "$0: debug[3]: now in directory: $(/bin/pwd)" 1>&2
 fi
 
 # show any existing git remote
@@ -224,7 +257,7 @@ if [[ -n "$VERBOSE" && -z "$NO_OP" ]]; then
     status="$?"
     if [[ "$status" -ne 0 ]]; then
 	echo "$0: FATAL: git remote error: $status" 1>&2
-	exit 17
+	exit 15
     fi
 fi
 
@@ -238,7 +271,7 @@ if [[ -z "$NO_OP" ]]; then
     status="$?"
     if [[ "$status" -ne 0 ]]; then
 	echo "$0: FATAL: git remote error: $status" 1>&2
-	exit 18
+	exit 16
     fi
     GIT_REMOTE=$(git remote)
     if [[ -z "$GIT_REMOTE" ]]; then
@@ -269,7 +302,7 @@ if [[ -z "$NO_OP" ]]; then
 	    status="$?"
 	    if [[ "$status" -ne 0 ]]; then
 		echo "$0: FATAL: git remote remote origin error: $status" 1>&2
-		exit 19
+		exit 17
 	    fi
 	fi
     fi
@@ -280,18 +313,18 @@ fi
 # set git remote
 #
 if [[ -n "$VERBOSE" ]]; then
-    echo "$0: Notice: git remote -v add origin $LOC_REPO_DIR/$NAME" 1>&2
+    echo "$0: Notice: git remote -v add origin $LOC_REPO_DIR/$REPO_NAME" 1>&2
 fi
 if [[ -z "$NO_OP" ]]; then
     if [[ -n "$VERBOSE" ]]; then
-	git remote -v add origin "$LOC_REPO_DIR/$NAME"
+	git remote -v add origin "$LOC_REPO_DIR/$REPO_NAME"
     else
-	git remote add origin "$LOC_REPO_DIR/$NAME"
+	git remote add origin "$LOC_REPO_DIR/$REPO_NAME"
     fi
     status="$?"
     if [[ "$status" -ne 0 ]]; then
 	echo "$0: FATAL: git remote error: $status" 1>&2
-	exit 20
+	exit 18
     fi
 fi
 
@@ -309,7 +342,7 @@ if [[ -z "$NO_OP" ]]; then
     status="$?"
     if [[ "$status" -ne 0 ]]; then
 	echo "$0: FATAL: git fetch error: $status" 1>&2
-	exit 21
+	exit 19
     fi
 fi
 
@@ -321,7 +354,7 @@ if [[ -n "$VERBOSE" && -z "$NO_OP" ]]; then
     status="$?"
     if [[ "$status" -ne 0 ]]; then
 	echo "$0: FATAL: git remote error: $status" 1>&2
-	exit 22
+	exit 20
     fi
 fi
 
