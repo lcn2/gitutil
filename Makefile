@@ -70,7 +70,6 @@ TARGETS= undergit clonelocalgit clonermtgit syncgit rcs2git mkgitrepo git2gh ghr
 all: ${TARGETS}
 	${V} echo DEBUG =-= $@ start =-=
 	${V} echo DEBUG =-= $@ end =-=
-	@echo rule to build XXX or remove rule if target file just exists
 
 
 #################################################
