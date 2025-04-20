@@ -3,8 +3,6 @@
 Tools to form git repos and/or GitHub repos
 
 
-## TL;DR
-
 To install:
 
 ```sh
