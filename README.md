@@ -14,8 +14,8 @@ make install
 
 ## clonelocalgit
 
-```sh
-usage: clonelocalgit [-h] [-v] [-V] [-n] [-r repotree] repo_name parent_dir
+```
+/usr/local/bin/clonelocalgit [-h] [-v] [-V] [-n] [-r repotree] repo_name parent_dir
 
 	-h            print this message and exit
 	-v            be verbose
@@ -35,7 +35,7 @@ clonelocalgit version: 1.0.0 2025-03-17
 ## clonermtgit
 
 ```sh
-usage: clonermtgit [-h] [-v] [-V] [-n] [-r repotree] repo_host repo_name parent_dir
+/usr/local/bin/clonermtgit [-h] [-v] [-V] [-n] [-r repotree] repo_host repo_name parent_dir
 
 	-h            print this message and exit
 	-v            be verbose
@@ -56,7 +56,7 @@ clonermtgit version: 1.0.0 2025-03-17
 ## ghreplace
 
 ```sh
-usage: ghreplace [-h] [-v] [-V] [-n] [-g gittree] [-s srctop] [-u user] dirname
+/usr/local/bin/ghreplace [-h] [-v] [-V] [-n] [-g gittree] [-s srctop] [-u user] dirname
 
     -h		print help and exit
     -v		be verbose
@@ -86,7 +86,7 @@ ghreplace version: 1.0.0 2025-03-17
 ## git2gh
 
 ```sh
-usage: git2gh [-h] [-v] [-V] [-n] [-g gittree] [-s srctop] [-u user] dirname
+/usr/local/bin/git2gh [-h] [-v] [-V] [-n] [-g gittree] [-s srctop] [-u user] dirname
 
     -h		print help and exit
     -v		be verbose
@@ -116,7 +116,7 @@ git2gh version: 1.0.0 2025-03-17
 ## mkgitrepo
 
 ```sh
-usage: mkgitrepo [-h] [-v] [-V] [-n] [-r locrepo] dir
+/usr/local/bin/mkgitrepo [-h] [-v] [-V] [-n] [-r locrepo] dir
 
     -h          print this message and exit
     -v          be verbose
@@ -135,7 +135,7 @@ mkgitrepo version: 1.0.0 2025-03-17
 ## rcs2git
 
 ```sh
-usage: rcs2git [-h] [-v] [-V] [-n] [-a] [-b] [-r locrepo] [-c] [-m commit] [-x tool] [-k] dir
+/usr/local/bin/rcs2git [-h] [-v] [-V] [-n] [-a] [-b] [-r locrepo] [-c] [-m commit] [-x tool] [-k] dir
 
     -h          print this message and exit
     -v          be verbose
@@ -160,7 +160,7 @@ rcs2git version: 1.0.0 2025-03-17
 ## syncgit
 
 ```sh
-usage: syncgit [-h] [-n] [-v] dir
+/usr/local/bin/syncgit [-h] [-n] [-v] dir
 
     -h          print this message and exit
     -v          be verbose
@@ -177,7 +177,7 @@ syncgit version: 1.0.0 2025-03-17
 ## undergit
 
 ```sh
-usage: undergit
+/usr/local/bin/undergit
 
     -h          print this message and exit
     -v          be verbose
