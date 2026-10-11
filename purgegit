@@ -1,0 +1,541 @@
+#!/usr/bin/env bash
+#
+# purgegit - purge git of files
+#
+# Copyright (c) 2026 by Landon Curt Noll.  All Rights Reserved.
+#
+# Permission to use, copy, modify, and distribute this software and
+# its documentation for any purpose and without fee is hereby granted,
+# provided that the above copyright, this permission notice and text
+# this comment, and the disclaimer below appear in all of the following:
+#
+#       supporting documentation
+#       source copies
+#       source works derived from this source
+#       binaries derived from this source or from derived source
+#
+# LANDON CURT NOLL DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+# INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO
+# EVENT SHALL LANDON CURT NOLL BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+# CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+# USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+# OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+#
+# This command was inspired by: https://www.axllent.org/docs/purge-files-from-git/
+#
+# chongo (Landon Curt Noll) /\oo/\
+#
+# http://www.isthe.com/chongo/index.html
+# https://github.com/lcn2
+#
+# Share and enjoy!  :-)
+
+
+# setup
+#
+export VERSION="1.0 2026-10-10"
+NAME=$(basename "$0")
+export NAME
+#
+export V_FLAG=0
+#
+export NOOP=
+export DO_NOT_PROCESS=
+#
+GIT_TOOL=$(type -P git)
+export GIT_TOOL
+if [[ -z $GIT_TOOL ]]; then
+    echo "$0: FATAL: git tool is not installed or not in \$PATH" 1>&2
+    exit 5
+fi
+"$GIT_TOOL" rev-parse --is-inside-work-tree >/dev/null 2>&1
+status="$?"
+if [[ $status -eq 0 ]]; then
+    TOPDIR=$("$GIT_TOOL" rev-parse --show-toplevel)
+fi
+export TOPDIR
+export ADD_2_GITIGNORE=""
+export REMOVE_AFTER=""
+export YES=""
+
+
+# usage
+#
+export USAGE="usage: $0 [-h] [-v level] [-V] [-n] [-N] [-d topdir] [-i] [-r] [-y] file_dir ...
+
+    -h          print help message and exit
+    -v level    set verbosity level (def level: $V_FLAG)
+    -V          print version string and exit
+
+    -n          go thru the actions, but do not update any files (def: do the action)
+    -N          do not process anything, just parse arguments (def: process something)
+
+    -d topdir   set topdir (def: $TOPDIR)
+    -i          update .gitignore (def: do not update .gitignore)
+    -r          remove each file_dir (def: do not remove)
+    -y          assume a backup was done, don't remind git push --force --all unless -v 1 (def: ask)
+
+    file_dir ...    file or directory under topdir to purge from git repo
+			NOTE: removal of .git or paths below .git are NOT allowed
+
+Exit codes:
+     0         all OK
+     1         some git command failed
+     2         -h and help string printed or -V and version string printed
+     3         command line error
+     4         some file_dir not found
+     5         some internal tool is not found or not an executable file
+     6         problems found with or in the topdir
+     7         failed to acknowledge that a backup was formed
+     8         git repo is not clean
+ >= 10         internal error
+
+$NAME version: $VERSION"
+
+
+# parse command line
+#
+while getopts :hv:VnNd:iry flag; do
+  case "$flag" in
+    h) echo "$USAGE"
+	exit 2
+	;;
+    v) V_FLAG="$OPTARG"
+	;;
+    V) echo "$VERSION"
+	exit 2
+	;;
+    n) NOOP="-n"
+	;;
+    N) DO_NOT_PROCESS="-N"
+	;;
+    d) TOPDIR="$OPTARG"
+        ;;
+    i) ADD_2_GITIGNORE='-i'
+        ;;
+    r) REMOVE_AFTER='-r'
+        ;;
+    y) YES='-y'
+        ;;
+    \?) echo "$0: ERROR: invalid option: -$OPTARG" 1>&2
+	echo 1>&2
+	echo "$USAGE" 1>&2
+	exit 3
+	;;
+    :) echo "$0: ERROR: option -$OPTARG requires an argument" 1>&2
+	echo 1>&2
+	echo "$USAGE" 1>&2
+	exit 3
+	;;
+    *) echo "$0: ERROR: unexpected value from getopts: $flag" 1>&2
+	echo 1>&2
+	echo "$USAGE" 1>&2
+	exit 3
+	;;
+  esac
+done
+if [[ $V_FLAG -ge 1 ]]; then
+    echo "$0: debug[1]: debug level: $V_FLAG" 1>&2
+fi
+#
+# remove the options
+#
+shift $(( OPTIND - 1 ));
+#
+# verify arg count
+#
+if [[ $# -lt 1 ]]; then
+    echo "$0: ERROR: expected 1 or more args, found: $#" 1>&2
+    echo "$USAGE" 1>&2
+    exit 3
+fi
+
+
+# cd to topdir
+#
+if [[ -z $TOPDIR ]]; then
+    echo "$0: ERROR: cannot determine git repo top directory for: $TOPDIR" 1>&2
+    exit 6
+fi
+if [[ ! -e $TOPDIR ]]; then
+    echo "$0: ERROR: cannot cd to non-existent path: $TOPDIR" 1>&2
+    exit 6
+fi
+if [[ ! -d $TOPDIR ]]; then
+    echo "$0: ERROR: cannot cd to a non-directory: $TOPDIR" 1>&2
+    exit 6
+fi
+export CD_FAILED
+if [[ $V_FLAG -ge 5 ]]; then
+    echo "$0: debug[5]: about to: cd $TOPDIR" 1>&2
+fi
+cd "$TOPDIR" || CD_FAILED="true"
+if [[ -n $CD_FAILED ]]; then
+    echo "$0: ERROR: cd $TOPDIR failed" 1>&2
+    exit 6
+fi
+TOPDIR_PATH=$(/bin/pwd)
+export TOPDIR_PATH
+if [[ -z $TOPDIR_PATH ]]; then
+    echo "$0: ERROR: cannot determine git repo full path for: $TOPDIR" 1>&2
+    exit 6
+elif [[ $V_FLAG -ge 3 ]]; then
+    echo "$0: debug[3]: now in directory: $TOPDIR_PATH" 1>&2
+fi
+git rev-parse --is-inside-work-tree >/dev/null 2>&1
+status="$?"
+if [[ $status -ne 0 ]]; then
+    echo "$0: ERROR: not a git repo tree: $TOPDIR_PATH" 1>&2
+    exit 6
+fi
+if [[ ! -d .git ]]; then
+    echo "$0: ERROR: missing .git: $TOPDIR" 1>&2
+    exit 6
+fi
+
+
+# print running info if verbose
+#
+# If -v 3 or higher, print exported variables in order that they were exported.
+#
+if [[ $V_FLAG -ge 3 ]]; then
+    echo "$0: debug[3]: VERSION=$VERSION" 1>&2
+    echo "$0: debug[3]: NAME=$NAME" 1>&2
+    echo "$0: debug[3]: V_FLAG=$V_FLAG" 1>&2
+    echo "$0: debug[3]: GIT_TOOL=$GIT_TOOL" 1>&2
+    echo "$0: debug[3]: NOOP=$NOOP" 1>&2
+    echo "$0: debug[3]: DO_NOT_PROCESS=$DO_NOT_PROCESS" 1>&2
+    echo "$0: debug[3]: TOPDIR=$TOPDIR" 1>&2
+    echo "$0: debug[3]: TOPDIR_PATH=$TOPDIR_PATH" 1>&2
+    echo "$0: debug[3]: ADD_2_GITIGNORE=$ADD_2_GITIGNORE" 1>&2
+    echo "$0: debug[3]: REMOVE_AFTER=$REMOVE_AFTER" 1>&2
+    echo "$0: debug[3]: YES=$YES" 1>&2
+fi
+
+
+# verify the existence of the file_dir list
+#
+export EXIT_CODE="0"
+for FILE_DIR in "$@"; do
+
+    # not allowed to remove at or under .git
+    #
+    if [[ $FILE_DIR == ".git" || $FILE_DIR =~ ^.git/ ]]; then
+	echo "$0: ERROR: removal of or below .git is NOT allowed" 1>&2
+	exit 3
+    fi
+
+    # verify that FILE_DIR exists
+    #
+    if [[ ! -e "$FILE_DIR" ]]; then
+	echo "$0: ERROR: FILE_DIR not found: $FILE_DIR" 1>&2
+	EXIT_CODE=4
+    elif [[ $V_FLAG -ge 3 ]]; then
+	echo "$0: debug[3]: found: $FILE_DIR" 1>&2
+    fi
+
+    # case: FILE_DIR is .gitignore
+    #
+    if [[ $FILE_DIR == ".gitignore" ]]; then
+
+	# cannot use -i when removing .gitignore
+	#
+	if [[ -n $ADD_2_GITIGNORE ]]; then
+	    echo "$0: ERROR: cannot use -i when removing .gitignore" 1>&2
+	    exit 3
+	fi
+
+    # case: FILE_DIR is NOT .gitignore
+    #
+    else
+
+	# verify that FILE_DIR isn't ignored via .gitignore
+	#
+	git check-ignore "$FILE_DIR" >/dev/null
+	status="$?"
+	if [[ $status -eq 0 ]]; then
+	    echo "$0: ERROR: ignored via .gitignore: $FILE_DIR" 1>&2
+	    echo "$0: Warning: relevant lines in .gitignore start below" 1>&2
+	    git check-ignore -v "$FILE_DIR" 1>&2
+	    echo "$0: Warning: relevant lines in .gitignore ends above" 1>&2
+	    EXIT_CODE=4
+	fi
+
+	# verify that FILE_DIR is under .git control
+	#
+	git ls-files --error-unmatch >/dev/null 2>&1
+	if [[ $status -ne 0 ]]; then
+	    echo "$0: ERROR: not under git control: $FILE_DIR" 1>&2
+	fi
+    fi
+done
+if [[ $EXIT_CODE -ne 0 ]]; then
+    echo "$0: ERROR: about to exit: $EXIT_CODE" 1>&2
+    exit "$EXIT_CODE"
+fi
+
+
+# verify that no changes are pending for this repo
+#
+STATUS_RESULT=$(git status -u --porcelain 2>&1)
+if [[ -n $STATUS_RESULT ]]; then
+    echo "$0: Warning: M: modified, A: added. D: deleted, ??: unknown to git repo" 1>&2
+    git status --porcelain -u
+    echo "$0: ERROR: git repo is not clean" 1>&2
+    exit 8
+fi
+
+
+# ask if the repo had been backed up
+#
+if [[ -z $YES ]]; then
+    echo "$0: Warning: This is potentially dangerous !!! -- Backup first !!!" 1>&2
+    echo 1>&2
+    echo -n "Have you backed up $TOPDIR_PATH ? " 1>&2
+    read -r ANSWER
+    if [[ $ANSWER != "y" && $ANSWER != "Y" && $ANSWER != "yes" && $ANSWER != "YE" ]]; then
+	echo "$0: ERROR: before you run $NAME, back up: $TOPDIR_PATH" 1>&2
+	echo "$0: notice: consider doing: cp -a $TOPDIR_PATH $TOPDIR_PATH.save" 1>&2
+	exit 7
+    fi
+fi
+
+
+# -N stops early before any processing is performed
+#
+if [[ -n $DO_NOT_PROCESS ]]; then
+    if [[ $V_FLAG -ge 3 ]]; then
+	echo "$0: debug[3]: arguments parsed, -N given, exiting 0" 1>&2
+    fi
+    exit 0
+fi
+
+
+# create a temporary add_2_gitignore file
+#
+export TMP_ADD_2_GITIGNORE=".tmp.$NAME.ADD_2_GITIGNORE.$$.tmp"
+if [[ $V_FLAG -ge 3 ]]; then
+    echo  "$0: debug[3]: temporary author_handle inventory file: $TMP_ADD_2_GITIGNORE" 1>&2
+fi
+trap 'rm -f $TMP_ADD_2_GITIGNORE; exit' 0 1 2 3 15
+rm -f "$TMP_ADD_2_GITIGNORE"
+if [[ -e $TMP_ADD_2_GITIGNORE ]]; then
+    echo "$0: ERROR: cannot remove temporary author_handle inventory file: $TMP_ADD_2_GITIGNORE" 1>&2
+    exit 10
+fi
+: > "$TMP_ADD_2_GITIGNORE"
+if [[ ! -e $TMP_ADD_2_GITIGNORE ]]; then
+    echo "$0: ERROR: cannot create temporary author_handle inventory file: $TMP_ADD_2_GITIGNORE" 1>&2
+    exit 11
+fi
+
+
+# process the entire file_dir list
+#
+while [[ -n "$1" ]]; do
+
+    # process the next file_dir item
+    #
+    export FILE_DIR="$1"
+    if [[ ! -e "$FILE_DIR" ]]; then
+	echo "$0: ERROR: arg not found: $FILE_DIR" 1>&2
+	exit 4
+    elif [[ $V_FLAG -ge 1 ]]; then
+	echo "$0: debug[1]: about to process: $FILE_DIR" 1>&2
+    fi
+
+    # remove from all commits, then remove the refs to the old commits
+    #
+    if [[ $V_FLAG -ge 1 ]]; then
+	echo "$0: debug[1]: about to: FILTER_BRANCH_SQUELCH_WARNING=1" \
+	     "git filter-branch --index-filter 'git rm -rf --cached --ignore-unmatch '\"${FILE_DIR}\"'" \
+	     "--prune-empty --tag-name-filter cat -- --all" 1>&2
+    fi
+    if [[ -z $NOOP ]]; then
+	FILTER_BRANCH_SQUELCH_WARNING=1 \
+	git filter-branch --index-filter 'git rm -rf --cached --ignore-unmatch '"${FILE_DIR}" --prune-empty --tag-name-filter cat -- --all
+	status="$?"
+	if [[ $status -ne 0 ]]; then
+	    echo "$0: ERROR: FILTER_BRANCH_SQUELCH_WARNING=1" \
+		 "git filter-branch --index-filter 'git rm -rf --cached --ignore-unmatch '\"${FILE_DIR}\"'" \
+		 "--prune-empty --tag-name-filter cat -- --all" \
+		 "failed: error: $status" 1>&2
+	    exit 1
+	fi
+    fi
+    if [[ $V_FLAG -ge 1 ]]; then
+	echo "$0: debug[1]: about to: git for-each-ref --format="'"%(refname)"'" refs/original/" \
+	     "| xargs -n 1 git update-ref -d" 1>&2
+    fi
+    if [[ -z $NOOP ]]; then
+	git for-each-ref --format="%(refname)" refs/original/ | xargs -n 1 git update-ref -d
+	status_codes=("${PIPESTATUS[@]}")
+	if [[ ${status_codes[*]} =~ [1-9] ]]; then
+	    echo "$0: ERROR: git for-each-ref git for-each-ref --format="'"%(refname)"'" refs/original/" \
+		"| xargs -n 1 git update-ref -d" \
+		 "error codes: ${status_codes[*]}" 1>&2
+	    exit 1
+	fi
+    fi
+
+    # ensure all old refs are fully removed
+    #
+    if [[ $V_FLAG -ge 1 ]]; then
+	echo "$0: debug[1]: about to: rm -Rf .git/logs .git/refs/original" 1>&2
+    fi
+    if [[ -z $NOOP ]]; then
+	rm -Rf .git/logs .git/refs/original
+	status="$?"
+	if [[ $status -ne 0 ]]; then
+	    echo "$0: ERROR: rm -Rf .git/logs .git/refs/original" \
+		 "failed: error: $status" 1>&2
+	    exit 1
+	fi
+    fi
+
+    # perform a garbage collection to remove commits with no refs
+    #
+    if [[ $V_FLAG -ge 1 ]]; then
+	echo "$0: debug[1]: about to: git gc --prune=all --aggressive" 1>&2
+    fi
+    if [[ -z $NOOP ]]; then
+	git gc --prune=all --aggressive
+	status="$?"
+	if [[ $status -ne 0 ]]; then
+	    echo "$0: ERROR: git gc --prune=all --aggressive" \
+		 "failed: error: $status" 1>&2
+	    exit 1
+	fi
+    fi
+
+    # update the add_2_gitignore file
+    #
+    if [[ -n $ADD_2_GITIGNORE ]]; then
+	if [[ $V_FLAG -ge 3 ]]; then
+	    echo "$0: debug[3]: adding to add_2_gitignore file: /$FILE_DIR" 1>&2
+	fi
+	echo "/$FILE_DIR" >> "$TMP_ADD_2_GITIGNORE"
+    fi
+
+    # remove the file_dir item
+    #
+    if [[ -n $REMOVE_AFTER ]]; then
+	if [[ $V_FLAG -ge 1 ]]; then
+	    echo "$0: debug[1]: about to: rm -rf $FILE_DIR" 1>&2
+	fi
+	if [[ -z $NOOP ]]; then
+	    rm -rf "$FILE_DIR"
+	fi
+	status="$?"
+	if [[ $status -ne 0 || ( -z $NOOP && -e "$FILE_DIR" ) ]]; then
+	    echo "$0: ERROR: rm -rf $FILE_DIR" \
+		 "failed: error: $status" 1>&2
+	    exit 1
+	fi
+    fi
+    shift
+done
+
+
+# if -i update .gitignore
+#
+if [[ -n $ADD_2_GITIGNORE ]]; then
+
+    # append file_dir set to .gitignore
+    #
+    if [[ $V_FLAG -ge 1 ]]; then
+	if [[ -f .gitignore ]]; then
+	    echo "$0: debug[1]: about to append file_dir set to: .gitignore" 1>&2
+	else
+	    echo "$0: debug[1]: about create .gitignore with file_dir set" 1>&2
+	fi
+    fi
+    if [[ $V_FLAG -ge 1 ]]; then
+	echo "$0: debug[1]: command to add lines to .gitignore start below" 1>&2
+	echo "cat >> .gitignore <<EOF" 1>&2
+	cat "$TMP_ADD_2_GITIGNORE" 1>&2
+	echo "EOF" 1>&2
+	echo "$0: debug[1]: command to add lines to .gitignore ends above" 1>&2
+    fi
+    if [[ -z $NOOP ]]; then
+	cat "$TMP_ADD_2_GITIGNORE" >> .gitignore
+	status="$?"
+	if [[ $status -ne 0 ]]; then
+	    echo "$0: ERROR: cat $TMP_ADD_2_GITIGNORE >> .gitignore" \
+		 "failed: error: $status" 1>&2
+	    exit 1
+	fi
+    fi
+
+    # git add .gitignore
+    #
+    if [[ $V_FLAG -ge 1 ]]; then
+	echo "$0: debug[1]: about to: git add .gitignore" 1>&2
+    fi
+    if [[ -z $NOOP ]]; then
+	git add .gitignore
+	status="$?"
+	if [[ $status -ne 0 ]]; then
+	    echo "$0: ERROR: git add .gitignore" \
+		 "failed: error: $status" 1>&2
+	    exit 1
+	fi
+    fi
+
+    # commit .gitignore add
+    #
+    if [[ $V_FLAG -ge 1 ]]; then
+	echo "$0: debug[1]: about to: git commit -m 'due to use of purgegit, add file_dir set to .gitignore'" 1>&2
+    fi
+    if [[ -z $NOOP ]]; then
+	git commit -m 'due to use of purgegit, add file_dir set to .gitignore'
+	status="$?"
+	if [[ $status -ne 0 ]]; then
+	    echo "$0: ERROR: git commit -m 'due to use of purgegit, add file_dir set to .gitignore'" \
+		 "failed: error: $status" 1>&2
+	    exit 1
+	fi
+    fi
+fi
+
+
+# compress local database
+#
+if [[ $V_FLAG -ge 1 ]]; then
+    echo "$0: debug[1]: about to: git reflog expire --expire=now --all" 1>&2
+fi
+if [[ -z $NOOP ]]; then
+    git reflog expire --expire=now --all
+    status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: git reflog expire --expire=now --all" \
+	     "failed: error: $status" 1>&2
+	exit 1
+    fi
+fi
+if [[ $V_FLAG -ge 1 ]]; then
+    echo "$0: debug[1]: about to: git gc --prune=now --aggressive 2> /dev/null" 1>&2
+fi
+if [[ -z $NOOP ]]; then
+    git gc --prune=now --aggressive 2> /dev/null
+    status="$?"
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: git gc --prune=now --aggressive 2> /dev/null" \
+	     "failed: error: $status" 1>&2
+	exit 1
+    fi
+fi
+
+
+# remind user, unless -y, to do a git push --force --all
+#
+if [[ -z $YES || $V_FLAG -ge 1 ]]; then
+    echo 1>&2
+    echo "$0: notice: after inspection, remember to do: git push --force --all" 1>&2
+fi
+
+
+# All Done!!! -- Jessica Noll, Age 2
+#
+exit 0

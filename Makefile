@@ -60,7 +60,7 @@ DESTLIB= ${PREFIX}/lib
 MAN1DIR= ${PREFIX}/man/man1
 MAN8DIR= ${PREFIX}/man/man8
 
-TARGETS= undergit clonelocalgit clonermtgit syncgit rcs2git mkgitrepo git2gh ghreplace
+TARGETS= undergit clonelocalgit clonermtgit syncgit rcs2git mkgitrepo git2gh ghreplace purgegit
 
 
 ######################################
